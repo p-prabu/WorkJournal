@@ -1,7 +1,8 @@
 const STORAGE_KEYS = {
   notes: "mind_journal_notes",
   theme: "mind_journal_theme",
-  view: "mind_journal_view"
+  view: "mind_journal_view",
+  sort: "mind_journal_sort"
 };
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -11,10 +12,12 @@ const state = {
   notes: loadNotes(),
   selectedNoteId: null,
   notePendingDeleteId: null,
+  lastDeletedNote: null,
   isCalendarOpen: false,
   searchQuery: "",
   selectedDate: null,
   currentView: loadPreference(STORAGE_KEYS.view, "card"),
+  currentSort: loadPreference(STORAGE_KEYS.sort, "updated"),
   currentTheme: loadPreference(STORAGE_KEYS.theme, DEFAULT_THEME),
   calendarMonth: startOfMonth(new Date()),
   autosaveMessage: "Autosave ready"
@@ -36,6 +39,9 @@ const elements = {
   noteUpdatedAt: document.querySelector("#note-updated-at"),
   closeEditorButton: document.querySelector("#close-editor-button"),
   deleteNoteButton: document.querySelector("#delete-note-button"),
+  undoBanner: document.querySelector("#undo-banner"),
+  undoMessage: document.querySelector("#undo-message"),
+  undoDeleteButton: document.querySelector("#undo-delete-button"),
   deleteModalBackdrop: document.querySelector("#delete-modal-backdrop"),
   deleteModalHeading: document.querySelector("#delete-modal-heading"),
   deleteModalDescription: document.querySelector("#delete-modal-description"),
@@ -48,6 +54,7 @@ const elements = {
   calendarTrigger: document.querySelector("#calendar-trigger"),
   calendarTriggerText: document.querySelector("#calendar-trigger-text"),
   themeSelect: document.querySelector("#theme-select"),
+  sortSelect: document.querySelector("#sort-select"),
   viewButtons: document.querySelectorAll("[data-view]"),
   calendarMonthLabel: document.querySelector("#calendar-month-label"),
   calendarPopover: document.querySelector("#calendar-popover"),
@@ -67,6 +74,7 @@ initialize();
 function initialize() {
   document.body.dataset.theme = state.currentTheme;
   elements.themeSelect.value = state.currentTheme;
+  elements.sortSelect.value = state.currentSort;
   ensureSelection();
   bindEvents();
   renderWeekdays();
@@ -79,6 +87,7 @@ function bindEvents() {
   elements.deleteNoteButton.addEventListener("click", openDeleteModal);
   elements.cancelDeleteButton.addEventListener("click", closeDeleteModal);
   elements.confirmDeleteButton.addEventListener("click", deleteSelectedNote);
+  elements.undoDeleteButton.addEventListener("click", undoDelete);
   elements.deleteModalBackdrop.addEventListener("click", (event) => {
     if (event.target === elements.deleteModalBackdrop) {
       closeDeleteModal();
@@ -98,6 +107,11 @@ function bindEvents() {
     persistPreference(STORAGE_KEYS.theme, state.currentTheme);
     document.body.dataset.theme = state.currentTheme;
     drawBrainVisualization();
+  });
+  elements.sortSelect.addEventListener("change", (event) => {
+    state.currentSort = event.target.value;
+    persistPreference(STORAGE_KEYS.sort, state.currentSort);
+    renderApp();
   });
   elements.viewButtons.forEach((button) => {
     button.addEventListener("click", () => {
@@ -136,6 +150,7 @@ function renderApp() {
   renderEditor();
   renderCalendar();
   renderDeleteModal();
+  renderUndoBanner();
   updateViewButtons();
   updateVisualSummary();
   drawBrainVisualization();
@@ -174,6 +189,12 @@ function buildNoteCard(note) {
     note.tags.forEach((tag) => {
       const item = document.createElement("li");
       item.textContent = `#${tag}`;
+      item.addEventListener("click", (event) => {
+        event.stopPropagation();
+        elements.searchInput.value = tag;
+        state.searchQuery = tag;
+        renderApp();
+      });
       tags.appendChild(item);
     });
   }
@@ -265,6 +286,14 @@ function renderDeleteModal() {
   elements.deleteModalHeading.textContent = `Delete "${note.title || "Untitled note"}"?`;
   elements.deleteModalDescription.textContent =
     "This note will be removed from your local journal and cannot be recovered here.";
+}
+
+function renderUndoBanner() {
+  const hasUndo = Boolean(state.lastDeletedNote);
+  elements.undoBanner.classList.toggle("hidden", !hasUndo);
+  if (hasUndo) {
+    elements.undoMessage.textContent = `"${state.lastDeletedNote.title || "Untitled note"}" deleted`;
+  }
 }
 
 function renderCalendar() {
@@ -445,6 +474,7 @@ function deleteSelectedNote() {
     return;
   }
 
+  state.lastDeletedNote = { ...note };
   state.notes = state.notes.filter((item) => item.id !== note.id);
   state.notePendingDeleteId = null;
   state.selectedNoteId = null;
@@ -453,6 +483,18 @@ function deleteSelectedNote() {
   setAutosaveMessage("Note deleted");
   renderApp();
   elements.newNoteButton.focus();
+}
+
+function undoDelete() {
+  if (!state.lastDeletedNote) {
+    return;
+  }
+
+  state.notes.unshift(state.lastDeletedNote);
+  state.selectedNoteId = state.lastDeletedNote.id;
+  state.lastDeletedNote = null;
+  persistNotes();
+  renderApp();
 }
 
 function openDeleteModal() {
@@ -531,16 +573,19 @@ async function importNotes(event) {
       return;
     }
 
+    const existingIds = new Set(state.notes.map((note) => note.id));
     const mergedNotes = new Map(state.notes.map((note) => [note.id, note]));
     importedNotes.forEach((note) => {
       mergedNotes.set(note.id, note);
     });
+    const replacedCount = importedNotes.filter((note) => existingIds.has(note.id)).length;
+    const addedCount = importedNotes.length - replacedCount;
 
     state.notes = Array.from(mergedNotes.values());
     sortNotesInPlace();
     state.selectedNoteId = importedNotes[0].id;
     persistNotes();
-    setAutosaveMessage(`Imported ${importedNotes.length} note${importedNotes.length === 1 ? "" : "s"}`);
+    setAutosaveMessage(`Import complete: ${addedCount} added, ${replacedCount} replaced`);
     renderApp();
   } catch (error) {
     console.error("Failed to import notes", error);
@@ -712,7 +757,8 @@ function normalizeImportedNotes(parsed) {
 }
 
 function sortNotesInPlace() {
-  state.notes.sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt));
+  const field = state.currentSort === "created" ? "createdAt" : "updatedAt";
+  state.notes.sort((left, right) => new Date(right[field]) - new Date(left[field]));
 }
 
 function normalizeDate(value) {

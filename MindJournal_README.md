@@ -8,11 +8,15 @@ A minimal, Apple-inspired **offline-first notes & journal web app** built using 
 
 - 📝 Create, edit, and delete notes
 - 🔍 Global search (title, content, tags, date)
-- 📅 Calendar-based note browsing
+- 📅 Calendar-based date filtering
 - 🕰️ Timeline and Card view modes
+- ↕️ Sort by updated or created date
+- 🏷️ Clickable Library tags for quick filtering
 - 🎨 Light, Dark, and Soft Gray themes
 - 🧠 Brain-style visualization that grows with notes
 - 💾 LocalStorage persistence (works offline)
+- ↩️ Undo delete banner
+- 📥 Import notes from JSON
 - 📤 Export all notes as JSON
 - ⌨️ Keyboard shortcuts for fast workflow
 
@@ -23,7 +27,7 @@ A minimal, Apple-inspired **offline-first notes & journal web app** built using 
 | Shortcut | Action |
 |--------|--------|
 | N | Create new note |
-| Esc | Close editor |
+| Esc | Close editor or dismiss open overlays |
 | Ctrl / Cmd + F | Focus search |
 
 ---
@@ -44,6 +48,9 @@ A minimal, Apple-inspired **offline-first notes & journal web app** built using 
 │── style.css
 │── script.js
 │── README.md
+│── USER_GUIDE.md
+│── CHANGELOG.md
+│── MindJournal_README.md
 ```
 
 ---
@@ -61,16 +68,22 @@ No installation required.
 
 - Notes are stored in browser `localStorage`
 - Storage key: `mind_journal_notes`
+- Theme key: `mind_journal_theme`
+- View key: `mind_journal_view`
+- Sort key: `mind_journal_sort`
 
 ---
 
-## 📤 Export Notes
+## 📥📤 Import and Export Notes
 
-Click the **Export** button to download all notes as:
+Click **Export JSON** to download all notes as:
 
 ```
 mind-journal-notes.json
 ```
+
+Click **Import JSON** to restore or merge notes from a previously exported JSON file.
+After import, the app reports how many notes were added and how many were replaced.
 
 ---
 
@@ -88,6 +101,15 @@ The app includes a dynamic **brain-style visualization**:
 
 - Few notes → small network
 - More notes → dense network
+
+---
+
+## 🧭 Layout
+
+- Left sidebar: search, date filter, theme switcher, view switcher, Library list
+- Left sidebar controls also include sort and quick tag filtering from the Library
+- Top right: activity map visualization
+- Right panel: note editor for the currently selected note
 
 ---
 
@@ -113,6 +135,8 @@ The app includes a dynamic **brain-style visualization**:
 - No cloud sync
 - Data stored only in browser
 - Clearing browser storage removes notes
+- Imported notes merge locally by note `id`
+- Delete undo is available only for the latest deleted note in the current session
 
 ---
 
