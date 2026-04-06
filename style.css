@@ -195,6 +195,7 @@ p {
 
 .toolbar__row--actions {
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .search-field,
@@ -208,23 +209,19 @@ p {
   font-weight: 600;
 }
 
+.theme-picker--inline {
+  min-width: 164px;
+}
+
 .search-tools {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 150px;
-  gap: 12px;
-  align-items: end;
+  display: block;
 }
 
-.calendar-filter {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.calendar-filter__label {
-  color: var(--muted);
-  font-size: 0.88rem;
-  font-weight: 600;
+.view-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
 .calendar-trigger {
@@ -529,9 +526,21 @@ p {
 .tag-list li {
   padding: 5px 9px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(160, 95, 43, 0.14);
+  color: var(--accent-strong);
   font-size: 0.74rem;
   font-weight: 700;
+  cursor: pointer;
+  border: 1px solid rgba(160, 95, 43, 0.18);
+  transition: transform var(--transition), background var(--transition), color var(--transition),
+    border-color var(--transition);
+}
+
+.tag-list li:hover {
+  transform: translateY(-1px);
+  background: var(--accent);
+  color: #f9f8f3;
+  border-color: var(--accent);
 }
 
 .timeline-group {
@@ -574,6 +583,27 @@ p {
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+
+.undo-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 20px 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(160, 95, 43, 0.18);
+  background: linear-gradient(135deg, rgba(160, 95, 43, 0.16), rgba(255, 244, 226, 0.9));
+  color: var(--accent-strong);
+  box-shadow: 0 10px 24px rgba(160, 95, 43, 0.12);
+}
+
+.undo-banner .button {
+  background: var(--accent);
+  color: #f9f8f3;
+  font-weight: 700;
+  box-shadow: none;
 }
 
 .editor__body {
@@ -712,7 +742,12 @@ p {
   }
 
   .search-tools {
-    grid-template-columns: 1fr;
+    display: block;
+  }
+
+  .view-tools {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .calendar {
