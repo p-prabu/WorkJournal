@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mind Journal</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar panel">
+        <div class="sidebar__top">
+          <div>
+            <p class="eyebrow">Offline-first notes</p>
+            <h1>Mind Journal</h1>
+          </div>
+          <button class="button button--primary" id="new-note-button" type="button">
+            New Note
+          </button>
+        </div>
+
+        <section class="toolbar">
+          <div class="search-tools">
+            <label class="search-field" for="search-input">
+              <span>Search</span>
+              <input
+                id="search-input"
+                name="search"
+                type="search"
+                placeholder="Titles, content, tags, dates"
+                autocomplete="off"
+              />
+            </label>
+
+            <div class="calendar-filter">
+              <span class="calendar-filter__label">Date</span>
+              <button
+                class="button button--ghost calendar-trigger"
+                id="calendar-trigger"
+                type="button"
+                aria-haspopup="dialog"
+                aria-expanded="false"
+                aria-controls="calendar-popover"
+              >
+                <span class="calendar-trigger__icon" aria-hidden="true">&#128197;</span>
+                <span id="calendar-trigger-text">Any date</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="toolbar__row">
+            <div class="segmented-control" role="tablist" aria-label="Note view">
+              <button class="segmented-control__button" id="view-card" data-view="card" type="button">
+                Cards
+              </button>
+              <button class="segmented-control__button" id="view-timeline" data-view="timeline" type="button">
+                Timeline
+              </button>
+            </div>
+
+            <label class="theme-picker" for="theme-select">
+              <span>Theme</span>
+              <select id="theme-select" name="theme">
+                <option value="soft-gray">Soft Gray</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="toolbar__row toolbar__row--actions">
+            <button class="button button--ghost" id="clear-filters-button" type="button">
+              Clear Filters
+            </button>
+            <button class="button button--ghost" id="export-button" type="button">
+              Export JSON
+            </button>
+          </div>
+
+          <section
+            class="calendar panel panel--inner hidden"
+            id="calendar-popover"
+            aria-labelledby="calendar-heading"
+            role="dialog"
+            aria-modal="false"
+          >
+            <div class="calendar__header">
+              <div>
+                <p class="eyebrow">Filter by created date</p>
+                <h2 id="calendar-heading">Calendar</h2>
+              </div>
+              <div class="calendar__nav">
+                <button class="icon-button" id="calendar-prev" type="button" aria-label="Previous month">
+                  &#8249;
+                </button>
+                <button class="icon-button" id="calendar-today" type="button">Today</button>
+                <button class="icon-button" id="calendar-next" type="button" aria-label="Next month">
+                  &#8250;
+                </button>
+              </div>
+            </div>
+            <div class="calendar__month" id="calendar-month-label"></div>
+            <div class="calendar__weekdays" id="calendar-weekdays" aria-hidden="true"></div>
+            <div class="calendar__grid" id="calendar-grid"></div>
+          </section>
+        </section>
+
+        <section class="library panel panel--inner" aria-labelledby="library-heading">
+          <div class="library__header">
+            <div>
+              <p class="eyebrow">Library</p>
+              <h2 id="library-heading">Notes</h2>
+            </div>
+            <p class="library__summary" id="library-summary"></p>
+          </div>
+          <div class="library__content" id="library-container"></div>
+        </section>
+      </aside>
+
+      <main class="main-column">
+        <section class="visual panel" aria-labelledby="visual-heading">
+          <div class="visual__copy">
+            <div>
+              <p class="eyebrow">Activity map</p>
+              <h2 id="visual-heading">Thought Network</h2>
+            </div>
+            <p id="visual-summary">
+              Your note graph thickens as your journal grows.
+            </p>
+          </div>
+          <canvas id="brain-canvas" width="640" height="260" aria-label="Decorative note activity visualization"></canvas>
+        </section>
+
+        <section class="editor panel" id="editor-panel" aria-labelledby="editor-heading">
+          <div class="editor__header">
+            <div>
+              <p class="eyebrow">Editor</p>
+              <h2 id="editor-heading">No note selected</h2>
+            </div>
+            <div class="editor__actions">
+              <span class="autosave-indicator" id="autosave-indicator">Autosave ready</span>
+              <button class="button button--ghost" id="close-editor-button" type="button">
+                Close
+              </button>
+              <button class="button button--danger" id="delete-note-button" type="button">
+                Delete
+              </button>
+            </div>
+          </div>
+
+          <div class="editor__body" id="editor-body">
+            <div class="empty-state" id="editor-empty-state">
+              <h3>Start a fresh entry</h3>
+              <p>Create a note to begin capturing ideas, reflections, and quick fragments.</p>
+            </div>
+
+            <form class="editor-form hidden" id="editor-form">
+              <label class="field" for="note-title">
+                <span>Title</span>
+                <input id="note-title" name="title" type="text" placeholder="Untitled note" maxlength="120" />
+              </label>
+
+              <label class="field" for="note-tags">
+                <span>Tags</span>
+                <input
+                  id="note-tags"
+                  name="tags"
+                  type="text"
+                  placeholder="comma, separated, tags"
+                  autocomplete="off"
+                />
+              </label>
+
+              <label class="field field--grow" for="note-content">
+                <span>Content</span>
+                <textarea
+                  id="note-content"
+                  name="content"
+                  placeholder="Write freely. Changes save automatically."
+                ></textarea>
+              </label>
+
+              <dl class="meta-grid">
+                <div>
+                  <dt>Created</dt>
+                  <dd id="note-created-at">-</dd>
+                </div>
+                <div>
+                  <dt>Updated</dt>
+                  <dd id="note-updated-at">-</dd>
+                </div>
+              </dl>
+            </form>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <template id="note-card-template">
+      <article class="note-card">
+        <header class="note-card__header">
+          <h3></h3>
+          <time></time>
+        </header>
+        <p class="note-card__preview"></p>
+        <ul class="tag-list"></ul>
+      </article>
+    </template>
+
+    <div class="modal-backdrop hidden" id="delete-modal-backdrop" aria-hidden="true">
+      <section
+        class="modal panel"
+        id="delete-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-modal-heading"
+        aria-describedby="delete-modal-description"
+      >
+        <p class="eyebrow">Confirm deletion</p>
+        <h2 id="delete-modal-heading">Delete this note?</h2>
+        <p class="modal__description" id="delete-modal-description">
+          This note will be removed from your local journal and cannot be recovered here.
+        </p>
+        <div class="modal__actions">
+          <button class="button button--ghost" id="cancel-delete-button" type="button">
+            Cancel
+          </button>
+          <button class="button button--danger" id="confirm-delete-button" type="button">
+            Delete Note
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
