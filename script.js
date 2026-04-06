@@ -42,6 +42,8 @@ const elements = {
   cancelDeleteButton: document.querySelector("#cancel-delete-button"),
   confirmDeleteButton: document.querySelector("#confirm-delete-button"),
   clearFiltersButton: document.querySelector("#clear-filters-button"),
+  importButton: document.querySelector("#import-button"),
+  importFileInput: document.querySelector("#import-file-input"),
   exportButton: document.querySelector("#export-button"),
   calendarTrigger: document.querySelector("#calendar-trigger"),
   calendarTriggerText: document.querySelector("#calendar-trigger-text"),
@@ -83,6 +85,8 @@ function bindEvents() {
     }
   });
   elements.clearFiltersButton.addEventListener("click", clearFilters);
+  elements.importButton.addEventListener("click", () => elements.importFileInput.click());
+  elements.importFileInput.addEventListener("change", importNotes);
   elements.exportButton.addEventListener("click", exportNotes);
   elements.calendarTrigger.addEventListener("click", toggleCalendarPopover);
   elements.searchInput.addEventListener("input", (event) => {
@@ -510,6 +514,43 @@ function exportNotes() {
   renderEditor();
 }
 
+async function importNotes(event) {
+  const [file] = event.target.files || [];
+  if (!file) {
+    return;
+  }
+
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    const importedNotes = normalizeImportedNotes(parsed);
+
+    if (importedNotes.length === 0) {
+      setAutosaveMessage("Import skipped: no valid notes found");
+      renderEditor();
+      return;
+    }
+
+    const mergedNotes = new Map(state.notes.map((note) => [note.id, note]));
+    importedNotes.forEach((note) => {
+      mergedNotes.set(note.id, note);
+    });
+
+    state.notes = Array.from(mergedNotes.values());
+    sortNotesInPlace();
+    state.selectedNoteId = importedNotes[0].id;
+    persistNotes();
+    setAutosaveMessage(`Imported ${importedNotes.length} note${importedNotes.length === 1 ? "" : "s"}`);
+    renderApp();
+  } catch (error) {
+    console.error("Failed to import notes", error);
+    setAutosaveMessage("Import failed: invalid JSON file");
+    renderEditor();
+  } finally {
+    event.target.value = "";
+  }
+}
+
 function handleKeyboardShortcuts(event) {
   const target = event.target;
   const isTyping = target instanceof HTMLElement && /INPUT|TEXTAREA|SELECT/.test(target.tagName);
@@ -651,6 +692,23 @@ function loadNotes() {
     console.error("Failed to parse saved notes", error);
     return [];
   }
+}
+
+function normalizeImportedNotes(parsed) {
+  if (!Array.isArray(parsed)) {
+    throw new Error("Imported JSON must be an array of notes");
+  }
+
+  return parsed
+    .map((note) => ({
+      id: String(note.id || createId()),
+      title: String(note.title || ""),
+      content: String(note.content || ""),
+      tags: Array.isArray(note.tags) ? note.tags.map((tag) => String(tag).trim()).filter(Boolean) : [],
+      createdAt: normalizeDate(note.createdAt),
+      updatedAt: normalizeDate(note.updatedAt || note.createdAt)
+    }))
+    .filter((note) => note.title || note.content || note.tags.length);
 }
 
 function sortNotesInPlace() {
