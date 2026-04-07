@@ -31,12 +31,16 @@ const state = {
   notePendingDeleteId: null,
   lastDeletedNote: null,
   pendingImport: null,
+  isFolderBrowserOpen: false,
   isCalendarOpen: false,
   isSettingsOpen: false,
   isFocusMode: loadPreference(STORAGE_KEYS.focus, "false") === "true",
   isShortcutHelpOpen: false,
   hasSeenOnboarding: loadPreference(STORAGE_KEYS.onboarding, "false") === "true",
   uiSettings: loadUiSettings(),
+  folderSearchQuery: "",
+  selectedFolderTag: null,
+  selectedFolderMonth: null,
   searchQuery: "",
   selectedDate: null,
   currentView: loadPreference(STORAGE_KEYS.view, "card"),
@@ -56,6 +60,7 @@ const elements = {
   toggleBrainRoadmap: document.querySelector("#toggle-brain-roadmap"),
   focusModeButton: document.querySelector("#focus-mode-button"),
   newNoteButton: document.querySelector("#new-note-button"),
+  openFolderButton: document.querySelector("#open-folder-button"),
   viewControlWrapper: document.querySelector("#view-control-wrapper"),
   themeControlWrapper: document.querySelector("#theme-control-wrapper"),
   librarySummary: document.querySelector("#library-summary"),
@@ -76,6 +81,14 @@ const elements = {
   undoBanner: document.querySelector("#undo-banner"),
   undoMessage: document.querySelector("#undo-message"),
   undoDeleteButton: document.querySelector("#undo-delete-button"),
+  folderBrowserBackdrop: document.querySelector("#folder-browser-backdrop"),
+  closeFolderBrowserButton: document.querySelector("#close-folder-browser-button"),
+  folderSearchInput: document.querySelector("#folder-search-input"),
+  folderClearButton: document.querySelector("#folder-clear-button"),
+  folderTagList: document.querySelector("#folder-tag-list"),
+  folderMonthList: document.querySelector("#folder-month-list"),
+  folderResultsSummary: document.querySelector("#folder-results-summary"),
+  folderResults: document.querySelector("#folder-results"),
   shortcutsModalBackdrop: document.querySelector("#shortcuts-modal-backdrop"),
   closeShortcutsButton: document.querySelector("#close-shortcuts-button"),
   importConfirmModalBackdrop: document.querySelector("#import-confirm-modal-backdrop"),
@@ -136,6 +149,7 @@ function bindEvents() {
   elements.toggleThemeControl.addEventListener("change", (event) => updateUiSetting("showThemeControl", event.target.checked));
   elements.toggleViewControl.addEventListener("change", (event) => updateUiSetting("showViewControl", event.target.checked));
   elements.toggleBrainRoadmap.addEventListener("change", (event) => updateUiSetting("showBrainRoadmap", event.target.checked));
+  elements.openFolderButton.addEventListener("click", openFolderBrowser);
   elements.newNoteButton.addEventListener("click", createNote);
   elements.closeEditorButton.addEventListener("click", closeEditor);
   elements.deleteNoteButton.addEventListener("click", openDeleteModal);
@@ -150,6 +164,17 @@ function bindEvents() {
     if (event.target === elements.deleteModalBackdrop) {
       closeDeleteModal();
     }
+  });
+  elements.folderBrowserBackdrop.addEventListener("click", (event) => {
+    if (event.target === elements.folderBrowserBackdrop) {
+      closeFolderBrowser();
+    }
+  });
+  elements.closeFolderBrowserButton.addEventListener("click", closeFolderBrowser);
+  elements.folderClearButton.addEventListener("click", resetFolderBrowserFilters);
+  elements.folderSearchInput.addEventListener("input", (event) => {
+    state.folderSearchQuery = event.target.value.trim();
+    renderFolderBrowser();
   });
   elements.shortcutsModalBackdrop.addEventListener("click", (event) => {
     if (event.target === elements.shortcutsModalBackdrop) {
@@ -219,6 +244,7 @@ function renderApp() {
   renderEditor();
   renderCalendar();
   renderDeleteModal();
+  renderFolderBrowser();
   renderShortcutHelpModal();
   renderImportConfirmModal();
   renderUndoBanner();
@@ -384,6 +410,21 @@ function renderDeleteModal() {
     "This note will be removed from your local journal and cannot be recovered here.";
 }
 
+function renderFolderBrowser() {
+  const isOpen = state.isFolderBrowserOpen;
+  elements.folderBrowserBackdrop.classList.toggle("hidden", !isOpen);
+  elements.folderBrowserBackdrop.setAttribute("aria-hidden", String(!isOpen));
+
+  if (!isOpen) {
+    return;
+  }
+
+  elements.folderSearchInput.value = state.folderSearchQuery;
+  renderFolderTags();
+  renderFolderMonths();
+  renderFolderResults();
+}
+
 function renderShortcutHelpModal() {
   elements.shortcutsModalBackdrop.classList.toggle("hidden", !state.isShortcutHelpOpen);
   elements.shortcutsModalBackdrop.setAttribute("aria-hidden", String(!state.isShortcutHelpOpen));
@@ -410,6 +451,116 @@ function renderUndoBanner() {
   if (hasUndo) {
     elements.undoMessage.textContent = `"${state.lastDeletedNote.title || "Untitled note"}" deleted`;
   }
+}
+
+function renderFolderTags() {
+  const counts = state.notes.reduce((map, note) => {
+    note.tags.forEach((tag) => {
+      map.set(tag, (map.get(tag) || 0) + 1);
+    });
+    return map;
+  }, new Map());
+  const sortedTags = Array.from(counts.entries()).sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
+  elements.folderTagList.innerHTML = "";
+
+  if (sortedTags.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "folder-browser__empty";
+    empty.textContent = "No tags yet";
+    elements.folderTagList.appendChild(empty);
+    return;
+  }
+
+  sortedTags.forEach(([tag, count]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "folder-chip";
+    button.classList.toggle("is-active", state.selectedFolderTag === tag);
+    button.textContent = `#${tag} (${count})`;
+    button.addEventListener("click", () => {
+      state.selectedFolderTag = state.selectedFolderTag === tag ? null : tag;
+      renderFolderBrowser();
+    });
+    elements.folderTagList.appendChild(button);
+  });
+}
+
+function renderFolderMonths() {
+  const counts = state.notes.reduce((map, note) => {
+    const monthKey = formatMonthKey(note.createdAt);
+    map.set(monthKey, (map.get(monthKey) || 0) + 1);
+    return map;
+  }, new Map());
+  const sortedMonths = Array.from(counts.entries()).sort((left, right) => right[0].localeCompare(left[0]));
+  elements.folderMonthList.innerHTML = "";
+
+  if (sortedMonths.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "folder-browser__empty";
+    empty.textContent = "No months yet";
+    elements.folderMonthList.appendChild(empty);
+    return;
+  }
+
+  sortedMonths.forEach(([monthKey, count]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "folder-chip";
+    button.classList.toggle("is-active", state.selectedFolderMonth === monthKey);
+    button.textContent = `${formatMonthLabel(monthKey)} (${count})`;
+    button.addEventListener("click", () => {
+      state.selectedFolderMonth = state.selectedFolderMonth === monthKey ? null : monthKey;
+      renderFolderBrowser();
+    });
+    elements.folderMonthList.appendChild(button);
+  });
+}
+
+function renderFolderResults() {
+  const notes = getFolderVisibleNotes();
+  elements.folderResults.innerHTML = "";
+  elements.folderResultsSummary.textContent = `${notes.length} of ${state.notes.length}`;
+
+  if (notes.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty-list";
+    empty.textContent = "No notes match these folder filters.";
+    elements.folderResults.appendChild(empty);
+    return;
+  }
+
+  notes.forEach((note) => {
+    const article = document.createElement("article");
+    article.className = "folder-result";
+    article.classList.toggle("is-selected", note.id === state.selectedNoteId);
+
+    const title = document.createElement("h3");
+    title.textContent = note.title || "Untitled note";
+
+    const meta = document.createElement("p");
+    meta.className = "folder-result__meta";
+    meta.textContent = `${formatMonthLabel(formatMonthKey(note.createdAt))} • ${formatShortDate(note.updatedAt)}`;
+    article.append(title, meta);
+
+    if (note.tags.length) {
+      const tags = document.createElement("ul");
+      tags.className = "tag-list";
+      note.tags.forEach((tag) => {
+        const item = document.createElement("li");
+        item.textContent = `#${tag}`;
+        tags.appendChild(item);
+      });
+      article.appendChild(tags);
+    }
+
+    article.addEventListener("click", () => {
+      state.selectedNoteId = note.id;
+      closeFolderBrowser(false);
+      renderApp();
+    });
+
+    elements.folderResults.appendChild(article);
+  });
 }
 
 function renderCalendar() {
@@ -1056,8 +1207,36 @@ function clearFilters() {
   renderApp();
 }
 
+function openFolderBrowser() {
+  state.isFolderBrowserOpen = true;
+  state.isCalendarOpen = false;
+  state.isSettingsOpen = false;
+  state.isShortcutHelpOpen = false;
+  resetFolderBrowserFilters(false);
+  renderApp();
+  elements.folderSearchInput.focus();
+}
+
+function closeFolderBrowser(restoreFocus = true) {
+  state.isFolderBrowserOpen = false;
+  renderFolderBrowser();
+  if (restoreFocus) {
+    elements.openFolderButton.focus();
+  }
+}
+
+function resetFolderBrowserFilters(shouldRender = true) {
+  state.folderSearchQuery = "";
+  state.selectedFolderTag = null;
+  state.selectedFolderMonth = null;
+  if (shouldRender) {
+    renderFolderBrowser();
+  }
+}
+
 function toggleFocusMode() {
   state.isFocusMode = !state.isFocusMode;
+  state.isFolderBrowserOpen = false;
   state.isCalendarOpen = false;
   state.isSettingsOpen = false;
   state.isShortcutHelpOpen = false;
@@ -1066,6 +1245,7 @@ function toggleFocusMode() {
 }
 
 function openShortcutHelp() {
+  state.isFolderBrowserOpen = false;
   state.isCalendarOpen = false;
   state.isSettingsOpen = false;
   state.isShortcutHelpOpen = true;
@@ -1201,6 +1381,11 @@ function handleKeyboardShortcuts(event) {
     return;
   }
 
+  if (event.key === "Escape" && state.isFolderBrowserOpen) {
+    closeFolderBrowser();
+    return;
+  }
+
   if (event.key === "Escape" && state.isCalendarOpen) {
     state.isCalendarOpen = false;
     renderCalendarPopover();
@@ -1218,7 +1403,7 @@ function handleKeyboardShortcuts(event) {
     return;
   }
 
-  if (state.notePendingDeleteId || state.isShortcutHelpOpen || state.pendingImport) {
+  if (state.notePendingDeleteId || state.isShortcutHelpOpen || state.pendingImport || state.isFolderBrowserOpen) {
     return;
   }
 
@@ -1340,6 +1525,21 @@ function countNotesByCreatedDate(notes) {
   }, new Map());
 }
 
+function getFolderVisibleNotes() {
+  return state.notes.filter((note) => {
+    if (state.folderSearchQuery && !matchesSearch(note, state.folderSearchQuery)) {
+      return false;
+    }
+    if (state.selectedFolderTag && !note.tags.includes(state.selectedFolderTag)) {
+      return false;
+    }
+    if (state.selectedFolderMonth && formatMonthKey(note.createdAt) !== state.selectedFolderMonth) {
+      return false;
+    }
+    return true;
+  });
+}
+
 function getCalendarGridDays(monthDate) {
   const firstDay = startOfMonth(monthDate);
   const startOffset = (firstDay.getDay() + 6) % 7;
@@ -1445,6 +1645,20 @@ function formatDateKey(value) {
   return `${year}-${month}-${day}`;
 }
 
+function formatMonthKey(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function formatMonthLabel(monthKey) {
+  return new Date(`${monthKey}-01T12:00:00`).toLocaleDateString(undefined, {
+    month: "long",
+    year: "numeric"
+  });
+}
+
 function formatShortDate(value) {
   return new Date(value).toLocaleDateString(undefined, {
     month: "short",
@@ -1539,6 +1753,7 @@ function updateEditorMeta(note) {
 }
 
 function toggleCalendarPopover() {
+  state.isFolderBrowserOpen = false;
   state.isShortcutHelpOpen = false;
   state.isSettingsOpen = false;
   renderSettingsPopover();
@@ -1547,6 +1762,7 @@ function toggleCalendarPopover() {
 }
 
 function toggleSettingsPopover() {
+  state.isFolderBrowserOpen = false;
   state.isCalendarOpen = false;
   state.isShortcutHelpOpen = false;
   renderCalendarPopover();
