@@ -11,6 +11,8 @@ Mind Journal is a local-first journal and notes web app built with plain HTML, C
 - Sort notes by `Updated` or `Created`
 - Click Library tags to filter quickly
 - Undo note deletion from the editor banner
+- Toggle persistent Focus Mode
+- First-use onboarding for new users
 - Import notes from JSON
 - Export notes to JSON
 - Switch between Light, Dark, and Soft Gray themes
@@ -43,6 +45,8 @@ No installation or server is required.
 - Theme key: `mind_journal_theme`
 - View key: `mind_journal_view`
 - Sort key: `mind_journal_sort`
+- Focus key: `mind_journal_focus_mode`
+- Onboarding key: `mind_journal_has_seen_onboarding`
 
 All data is stored in the current browser only.
 
@@ -50,15 +54,21 @@ All data is stored in the current browser only.
 
 - `Export JSON` downloads notes as `mind-journal-notes.json`
 - `Import JSON` accepts exported note arrays and merges them into the current note store by `id`
+- The app shows an import review step before imported notes are applied
 - Import feedback reports how many notes were `added` and how many were `replaced`
 
 ## Keyboard Shortcuts
 
-| Shortcut | Action |
-| --- | --- |
-| `N` | Create a new note |
-| `Esc` | Close the editor or dismiss open overlays |
-| `Ctrl/Cmd + F` | Focus the in-app search field |
+| Action | Mac | Windows |
+| --- | --- | --- |
+| Open shortcut help | `?` | `?` |
+| Create a new note | `N` | `N` |
+| Close the editor or dismiss open overlays | `Esc` | `Esc` |
+| Focus the in-app search field | `Cmd + F` | `Ctrl + F` |
+| Toggle Focus Mode | `Cmd + .` | `Ctrl + .` |
+| Clear search and date filters | `Cmd + Delete` | `Ctrl + Backspace` |
+| Select next visible note | `J` | `J` |
+| Select previous visible note | `K` | `K` |
 
 ## Notes
 

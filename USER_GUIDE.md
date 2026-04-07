@@ -3,9 +3,10 @@
 ## Getting Started
 
 1. Open [`index.html`](/Users/prabuponnan/Documents/Claude/journal/index.html) in your browser.
-2. Click `New Note`.
-3. Add a title, tags, and content.
-4. Notes save automatically while you type.
+2. If this is your first time, review the welcome guide in the empty state.
+3. Click `New Note`.
+4. Add a title, tags, and content.
+5. Notes save automatically while you type.
 
 ## Main Areas
 
@@ -17,6 +18,13 @@
   Edit the currently selected note
 
 ## Working With Notes
+
+### Focus Mode
+
+- Use `Focus Mode` to hide the utility controls and keep only Search, Library, Activity Map, and Editor visible
+- Focus Mode stays on after refresh until you turn it off
+- Click the Focus button or use the keyboard shortcut to toggle it
+- Press `?` outside typing to open the full shortcut reference for Mac and Windows
 
 ### Create a note
 
@@ -79,6 +87,7 @@
 
 - Click `Import JSON`
 - Select a previously exported `.json` file
+- Review the import summary before confirming
 - Imported notes are merged into the current notes by note `id`
 - The app shows how many notes were added and how many existing notes were replaced
 
@@ -92,11 +101,16 @@ Theme preference is saved in the browser.
 
 ## Keyboard Shortcuts
 
-| Shortcut | Action |
-| --- | --- |
-| `N` | Create a new note |
-| `Esc` | Close the editor or dismiss open overlays |
-| `Ctrl/Cmd + F` | Focus search |
+| Action | Mac | Windows |
+| --- | --- | --- |
+| Open shortcut help | `?` | `?` |
+| Create a new note | `N` | `N` |
+| Close the editor or dismiss open overlays | `Esc` | `Esc` |
+| Focus search | `Cmd + F` | `Ctrl + F` |
+| Toggle Focus Mode | `Cmd + .` | `Ctrl + .` |
+| Clear search and date filters | `Cmd + Delete` | `Ctrl + Backspace` |
+| Select next visible note | `J` | `J` |
+| Select previous visible note | `K` | `K` |
 
 ## Data and Limitations
 
@@ -104,3 +118,4 @@ Theme preference is saved in the browser.
 - Clearing browser storage removes local notes
 - There is no cloud sync or account system
 - Delete undo is immediate-session only and is not a long-term trash/archive
+- The first-use welcome guide is remembered per browser using local storage

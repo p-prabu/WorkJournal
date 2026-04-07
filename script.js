@@ -2,18 +2,41 @@ const STORAGE_KEYS = {
   notes: "mind_journal_notes",
   theme: "mind_journal_theme",
   view: "mind_journal_view",
-  sort: "mind_journal_sort"
+  sort: "mind_journal_sort",
+  focus: "mind_journal_focus_mode",
+  onboarding: "mind_journal_has_seen_onboarding",
+  uiSettings: "mind_journal_ui_settings"
 };
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DEFAULT_THEME = "soft-gray";
+const BRAIN_MILESTONES = [
+  { count: 100, label: "100", cue: "Emerges", fill: 0.08 },
+  { count: 1000, label: "1000", cue: "Activates", fill: 0.28 },
+  { count: 2000, label: "2000", cue: "Deepens", fill: 0.46 },
+  { count: 4000, label: "4000", cue: "Brightens", fill: 0.68 },
+  { count: 7000, label: "7000", cue: "Near full", fill: 0.86 },
+  { count: 10000, label: "10000", cue: "Full form", fill: 1 }
+];
+let brainPointCloudCache = null;
+const DEFAULT_UI_SETTINGS = {
+  showThemeControl: true,
+  showViewControl: true,
+  showBrainRoadmap: true
+};
 
 const state = {
   notes: loadNotes(),
   selectedNoteId: null,
   notePendingDeleteId: null,
   lastDeletedNote: null,
+  pendingImport: null,
   isCalendarOpen: false,
+  isSettingsOpen: false,
+  isFocusMode: loadPreference(STORAGE_KEYS.focus, "false") === "true",
+  isShortcutHelpOpen: false,
+  hasSeenOnboarding: loadPreference(STORAGE_KEYS.onboarding, "false") === "true",
+  uiSettings: loadUiSettings(),
   searchQuery: "",
   selectedDate: null,
   currentView: loadPreference(STORAGE_KEYS.view, "card"),
@@ -25,12 +48,23 @@ const state = {
 
 const elements = {
   searchInput: document.querySelector("#search-input"),
+  shortcutHelpButton: document.querySelector("#shortcut-help-button"),
+  settingsButton: document.querySelector("#settings-button"),
+  settingsPopover: document.querySelector("#settings-popover"),
+  toggleThemeControl: document.querySelector("#toggle-theme-control"),
+  toggleViewControl: document.querySelector("#toggle-view-control"),
+  toggleBrainRoadmap: document.querySelector("#toggle-brain-roadmap"),
+  focusModeButton: document.querySelector("#focus-mode-button"),
   newNoteButton: document.querySelector("#new-note-button"),
+  viewControlWrapper: document.querySelector("#view-control-wrapper"),
+  themeControlWrapper: document.querySelector("#theme-control-wrapper"),
   librarySummary: document.querySelector("#library-summary"),
   libraryContainer: document.querySelector("#library-container"),
   editorPanel: document.querySelector("#editor-panel"),
   editorHeading: document.querySelector("#editor-heading"),
   editorEmptyState: document.querySelector("#editor-empty-state"),
+  onboardingPanel: document.querySelector("#onboarding-panel"),
+  dismissOnboardingButton: document.querySelector("#dismiss-onboarding-button"),
   editorForm: document.querySelector("#editor-form"),
   noteTitle: document.querySelector("#note-title"),
   noteTags: document.querySelector("#note-tags"),
@@ -42,6 +76,15 @@ const elements = {
   undoBanner: document.querySelector("#undo-banner"),
   undoMessage: document.querySelector("#undo-message"),
   undoDeleteButton: document.querySelector("#undo-delete-button"),
+  shortcutsModalBackdrop: document.querySelector("#shortcuts-modal-backdrop"),
+  closeShortcutsButton: document.querySelector("#close-shortcuts-button"),
+  importConfirmModalBackdrop: document.querySelector("#import-confirm-modal-backdrop"),
+  importSummaryFile: document.querySelector("#import-summary-file"),
+  importSummaryTotal: document.querySelector("#import-summary-total"),
+  importSummaryAdded: document.querySelector("#import-summary-added"),
+  importSummaryReplaced: document.querySelector("#import-summary-replaced"),
+  cancelImportButton: document.querySelector("#cancel-import-button"),
+  confirmImportButton: document.querySelector("#confirm-import-button"),
   deleteModalBackdrop: document.querySelector("#delete-modal-backdrop"),
   deleteModalHeading: document.querySelector("#delete-modal-heading"),
   deleteModalDescription: document.querySelector("#delete-modal-description"),
@@ -66,6 +109,10 @@ const elements = {
   noteCardTemplate: document.querySelector("#note-card-template"),
   brainCanvas: document.querySelector("#brain-canvas"),
   visualSummary: document.querySelector("#visual-summary"),
+  brainRoadmap: document.querySelector("#brain-roadmap"),
+  brainRoadmapStatus: document.querySelector("#brain-roadmap-status"),
+  brainRoadmapProgress: document.querySelector("#brain-roadmap-progress"),
+  brainRoadmapGrid: document.querySelector("#brain-roadmap-grid"),
   autosaveIndicator: document.querySelector("#autosave-indicator")
 };
 
@@ -73,6 +120,7 @@ initialize();
 
 function initialize() {
   document.body.dataset.theme = state.currentTheme;
+  document.body.classList.toggle("focus-mode", state.isFocusMode);
   elements.themeSelect.value = state.currentTheme;
   elements.sortSelect.value = state.currentSort;
   ensureSelection();
@@ -82,15 +130,35 @@ function initialize() {
 }
 
 function bindEvents() {
+  elements.focusModeButton.addEventListener("click", toggleFocusMode);
+  elements.shortcutHelpButton.addEventListener("click", openShortcutHelp);
+  elements.settingsButton.addEventListener("click", toggleSettingsPopover);
+  elements.toggleThemeControl.addEventListener("change", (event) => updateUiSetting("showThemeControl", event.target.checked));
+  elements.toggleViewControl.addEventListener("change", (event) => updateUiSetting("showViewControl", event.target.checked));
+  elements.toggleBrainRoadmap.addEventListener("change", (event) => updateUiSetting("showBrainRoadmap", event.target.checked));
   elements.newNoteButton.addEventListener("click", createNote);
   elements.closeEditorButton.addEventListener("click", closeEditor);
   elements.deleteNoteButton.addEventListener("click", openDeleteModal);
   elements.cancelDeleteButton.addEventListener("click", closeDeleteModal);
   elements.confirmDeleteButton.addEventListener("click", deleteSelectedNote);
   elements.undoDeleteButton.addEventListener("click", undoDelete);
+  elements.closeShortcutsButton.addEventListener("click", closeShortcutHelp);
+  elements.dismissOnboardingButton.addEventListener("click", dismissOnboarding);
+  elements.cancelImportButton.addEventListener("click", cancelPendingImport);
+  elements.confirmImportButton.addEventListener("click", confirmPendingImport);
   elements.deleteModalBackdrop.addEventListener("click", (event) => {
     if (event.target === elements.deleteModalBackdrop) {
       closeDeleteModal();
+    }
+  });
+  elements.shortcutsModalBackdrop.addEventListener("click", (event) => {
+    if (event.target === elements.shortcutsModalBackdrop) {
+      closeShortcutHelp();
+    }
+  });
+  elements.importConfirmModalBackdrop.addEventListener("click", (event) => {
+    if (event.target === elements.importConfirmModalBackdrop) {
+      cancelPendingImport();
     }
   });
   elements.clearFiltersButton.addEventListener("click", clearFilters);
@@ -106,7 +174,7 @@ function bindEvents() {
     state.currentTheme = event.target.value;
     persistPreference(STORAGE_KEYS.theme, state.currentTheme);
     document.body.dataset.theme = state.currentTheme;
-    drawBrainVisualization();
+    renderApp();
   });
   elements.sortSelect.addEventListener("change", (event) => {
     state.currentSort = event.target.value;
@@ -144,13 +212,20 @@ function bindEvents() {
 }
 
 function renderApp() {
+  document.body.classList.toggle("focus-mode", state.isFocusMode);
   sortNotesInPlace();
   ensureSelection();
   renderLibrary();
   renderEditor();
   renderCalendar();
   renderDeleteModal();
+  renderShortcutHelpModal();
+  renderImportConfirmModal();
   renderUndoBanner();
+  renderFocusModeButton();
+  renderSettingsPopover();
+  renderVisibilitySettings();
+  renderBrainRoadmap();
   updateViewButtons();
   updateVisualSummary();
   drawBrainVisualization();
@@ -169,6 +244,25 @@ function renderCalendarPopover() {
   elements.calendarPopover.classList.toggle("hidden", !state.isCalendarOpen);
   elements.calendarTrigger.setAttribute("aria-expanded", String(state.isCalendarOpen));
   elements.calendarTriggerText.textContent = state.selectedDate ? formatCompactDate(state.selectedDate) : "Any date";
+}
+
+function renderFocusModeButton() {
+  elements.focusModeButton.textContent = state.isFocusMode ? "Exit Focus" : "Focus Mode";
+  elements.focusModeButton.setAttribute("aria-pressed", String(state.isFocusMode));
+}
+
+function renderSettingsPopover() {
+  elements.settingsPopover.classList.toggle("hidden", !state.isSettingsOpen);
+  elements.settingsButton.setAttribute("aria-expanded", String(state.isSettingsOpen));
+  elements.toggleThemeControl.checked = state.uiSettings.showThemeControl;
+  elements.toggleViewControl.checked = state.uiSettings.showViewControl;
+  elements.toggleBrainRoadmap.checked = state.uiSettings.showBrainRoadmap;
+}
+
+function renderVisibilitySettings() {
+  elements.themeControlWrapper.classList.toggle("hidden", !state.uiSettings.showThemeControl);
+  elements.viewControlWrapper.classList.toggle("hidden", !state.uiSettings.showViewControl);
+  elements.brainRoadmap.classList.toggle("hidden", !state.uiSettings.showBrainRoadmap);
 }
 
 function buildNoteCard(note) {
@@ -249,8 +343,10 @@ function renderLibrary() {
 function renderEditor() {
   const note = getSelectedNote();
   const hasNote = Boolean(note);
+  const showOnboarding = shouldShowOnboarding();
 
   elements.editorEmptyState.classList.toggle("hidden", hasNote);
+  elements.onboardingPanel.classList.toggle("hidden", !showOnboarding);
   elements.editorForm.classList.toggle("hidden", !hasNote);
   elements.deleteNoteButton.disabled = !hasNote;
   elements.closeEditorButton.disabled = !hasNote;
@@ -286,6 +382,26 @@ function renderDeleteModal() {
   elements.deleteModalHeading.textContent = `Delete "${note.title || "Untitled note"}"?`;
   elements.deleteModalDescription.textContent =
     "This note will be removed from your local journal and cannot be recovered here.";
+}
+
+function renderShortcutHelpModal() {
+  elements.shortcutsModalBackdrop.classList.toggle("hidden", !state.isShortcutHelpOpen);
+  elements.shortcutsModalBackdrop.setAttribute("aria-hidden", String(!state.isShortcutHelpOpen));
+}
+
+function renderImportConfirmModal() {
+  const isOpen = Boolean(state.pendingImport);
+  elements.importConfirmModalBackdrop.classList.toggle("hidden", !isOpen);
+  elements.importConfirmModalBackdrop.setAttribute("aria-hidden", String(!isOpen));
+
+  if (!isOpen) {
+    return;
+  }
+
+  elements.importSummaryFile.textContent = state.pendingImport.fileName;
+  elements.importSummaryTotal.textContent = String(state.pendingImport.importedNotes.length);
+  elements.importSummaryAdded.textContent = String(state.pendingImport.addedCount);
+  elements.importSummaryReplaced.textContent = String(state.pendingImport.replacedCount);
 }
 
 function renderUndoBanner() {
@@ -365,7 +481,15 @@ function updateVisualSummary() {
     elements.visualSummary.textContent = "One memory anchor is active. Add more notes to widen the network.";
     return;
   }
-  elements.visualSummary.textContent = `${count} notes are feeding a denser pattern of connections.`;
+  if (count >= 10000) {
+    elements.visualSummary.textContent = "10,000 notes have filled the full brain form.";
+    return;
+  }
+  if (count >= 100) {
+    elements.visualSummary.textContent = `${count} notes are filling out a visible brain shape that keeps densifying toward 10,000.`;
+    return;
+  }
+  elements.visualSummary.textContent = `${count} notes are feeding a denser pattern of connections. At 100 notes, the brain form begins to appear.`;
 }
 
 function drawBrainVisualization() {
@@ -383,20 +507,33 @@ function drawBrainVisualization() {
   context.setTransform(scale, 0, 0, scale, 0, 0);
   context.clearRect(0, 0, cssWidth, cssHeight);
 
-  const count = Math.max(6, Math.min(state.notes.length * 3 + 6, 42));
-  const centerX = cssWidth / 2;
-  const centerY = cssHeight / 2;
-  const maxRadius = Math.min(cssWidth, cssHeight) * 0.34;
+  const noteCount = state.notes.length;
   const computedStyle = getComputedStyle(document.body);
   const accent = computedStyle.getPropertyValue("--accent").trim();
   const accentStrong = computedStyle.getPropertyValue("--accent-strong").trim();
   const glow = computedStyle.getPropertyValue("--canvas-glow").trim();
 
+  if (noteCount >= 100) {
+    drawStructuredBrainMode(context, cssWidth, cssHeight, noteCount, accent, accentStrong, glow);
+    return;
+  }
+
+  drawAbstractBrainMode(context, cssWidth, cssHeight, noteCount, accent, accentStrong, glow);
+}
+
+function drawAbstractBrainMode(context, cssWidth, cssHeight, noteCount, accent, accentStrong, glow) {
+  const count = Math.max(8, Math.min(10 + noteCount * 2, 96));
+  const centerX = cssWidth / 2;
+  const centerY = cssHeight / 2;
+  const maxRadius = Math.min(cssWidth, cssHeight) * 0.34;
+  const linkSpan = Math.max(2, Math.floor(count / 6));
+  const extraLinks = Math.min(Math.floor(noteCount * 1.2), 28);
+
   const nodes = Array.from({ length: count }, (_, index) => {
     const t = index / count;
     const angle = t * Math.PI * 2 * 1.618;
-    const radius = maxRadius * (0.28 + 0.72 * ((index % 7) / 6));
-    const pulse = state.notes.length ? ((index * 13) % 10) / 40 : 0.08;
+    const radius = maxRadius * (0.2 + 0.8 * ((index % 11) / 10));
+    const pulse = noteCount ? ((index * 13 + noteCount) % 10) / 40 : 0.08;
     return {
       x: centerX + Math.cos(angle) * radius,
       y: centerY + Math.sin(angle) * (radius * 0.72),
@@ -405,16 +542,22 @@ function drawBrainVisualization() {
   });
 
   context.strokeStyle = glow;
-  context.lineWidth = 1.2;
+  context.lineWidth = 0.9 + Math.min(noteCount / 24, 1.1);
 
   for (let index = 0; index < nodes.length; index += 1) {
     const node = nodes[index];
     const next = nodes[(index + 1) % nodes.length];
-    const paired = nodes[(index + Math.max(2, Math.floor(count / 4))) % nodes.length];
+    const paired = nodes[(index + linkSpan) % nodes.length];
     drawLine(context, node, next);
-    if (index % 3 === 0) {
+    if (index % 2 === 0) {
       drawLine(context, node, paired);
     }
+  }
+
+  for (let index = 0; index < extraLinks; index += 1) {
+    const from = nodes[(index * 5) % nodes.length];
+    const to = nodes[(index * 9 + linkSpan) % nodes.length];
+    drawLine(context, from, to);
   }
 
   nodes.forEach((node, index) => {
@@ -432,6 +575,395 @@ function drawBrainVisualization() {
     context.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
     context.fill();
   });
+}
+
+function drawStructuredBrainMode(context, cssWidth, cssHeight, noteCount, accent, accentStrong, glow) {
+  const centerX = cssWidth * 0.52;
+  const centerY = cssHeight * 0.54;
+  const scale = Math.min(cssWidth * 0.31, cssHeight * 0.5);
+  const progress = Math.min(Math.max((noteCount - 100) / 9900, 0), 1);
+  const cloud = getBrainPointCloud(3600);
+  const activeFloat = 120 + progress * (cloud.length - 120);
+  const activeWhole = Math.floor(activeFloat);
+  const activeRemainder = activeFloat - activeWhole;
+  const palette = getBrainMilestonePalette(noteCount, getComputedStyle(document.body), glow);
+  const lobeFill = context.createRadialGradient(centerX, centerY * 0.94, scale * 0.1, centerX, centerY, scale * 2.05);
+
+  lobeFill.addColorStop(0, withAlpha(palette.active, 0.16 + progress * 0.16));
+  lobeFill.addColorStop(0.58, withAlpha(palette.ghost, 0.08 + progress * 0.08));
+  lobeFill.addColorStop(1, "transparent");
+
+  context.fillStyle = lobeFill;
+  context.beginPath();
+  context.ellipse(centerX, centerY, scale * 1.5, scale * 1.12, 0, 0, Math.PI * 2);
+  context.fill();
+
+  context.save();
+  context.translate(centerX, centerY);
+  context.scale(scale, scale);
+
+  drawBrainOutline(context, palette.outline, palette.glow, palette.outlineAlpha);
+  drawBrainContours(context, palette.glow, progress, palette.contourAlpha);
+  drawBrainShadowMass(context, palette.ghost, progress);
+
+  cloud.forEach((point, index) => {
+    const isActive = index < activeWhole;
+    const isPartial = index === activeWhole;
+    const baseGhostAlpha = 0.04 + progress * 0.03 + palette.ghostAlphaBoost;
+    const alpha = isActive
+      ? Math.min(0.96, 0.62 + point.depth * 0.14 + palette.activeAlphaBoost)
+      : isPartial
+        ? activeRemainder * (0.56 + palette.activeAlphaBoost)
+        : baseGhostAlpha;
+    const radius = isActive ? 0.016 + point.weight * 0.018 + progress * 0.006 : 0.009 + point.weight * 0.004;
+    const fill = isActive ? (point.depth > 0.58 ? palette.outline : palette.active) : palette.ghost;
+
+    context.fillStyle = withAlpha(fill, alpha);
+    context.beginPath();
+    context.arc(point.x, point.y, radius, 0, Math.PI * 2);
+    context.fill();
+
+    if (isActive) {
+      context.fillStyle = withAlpha(palette.glow, 0.12 + progress * 0.12 + palette.glowAlphaBoost);
+      context.beginPath();
+      context.arc(point.x, point.y, radius * (1.6 + point.depth * 0.4), 0, Math.PI * 2);
+      context.fill();
+    }
+  });
+
+  context.restore();
+}
+
+function drawBrainOutline(context, accentStrong, glow, outlineAlpha) {
+  context.fillStyle = withAlpha(accentStrong, 0.045);
+  context.beginPath();
+  context.moveTo(-0.92, -0.04);
+  context.bezierCurveTo(-0.98, -0.42, -0.62, -0.82, -0.04, -0.84);
+  context.bezierCurveTo(0.44, -0.86, 0.86, -0.6, 1, -0.16);
+  context.bezierCurveTo(1.08, 0.08, 1.03, 0.34, 0.86, 0.52);
+  context.bezierCurveTo(0.72, 0.66, 0.48, 0.76, 0.16, 0.74);
+  context.bezierCurveTo(0.02, 0.9, -0.24, 0.96, -0.44, 0.88);
+  context.bezierCurveTo(-0.62, 0.82, -0.72, 0.68, -0.74, 0.52);
+  context.bezierCurveTo(-0.92, 0.48, -1.04, 0.24, -0.98, 0.04);
+  context.bezierCurveTo(-0.96, -0.02, -0.94, -0.04, -0.92, -0.04);
+  context.closePath();
+  context.fill();
+
+  context.strokeStyle = withAlpha(glow, 0.88);
+  context.lineWidth = 0.024;
+  context.beginPath();
+  context.moveTo(-0.92, -0.04);
+  context.bezierCurveTo(-0.98, -0.42, -0.62, -0.82, -0.04, -0.84);
+  context.bezierCurveTo(0.44, -0.86, 0.86, -0.6, 1, -0.16);
+  context.bezierCurveTo(1.08, 0.08, 1.03, 0.34, 0.86, 0.52);
+  context.bezierCurveTo(0.72, 0.66, 0.48, 0.76, 0.16, 0.74);
+  context.bezierCurveTo(0.02, 0.9, -0.24, 0.96, -0.44, 0.88);
+  context.bezierCurveTo(-0.62, 0.82, -0.72, 0.68, -0.74, 0.52);
+  context.bezierCurveTo(-0.92, 0.48, -1.04, 0.24, -0.98, 0.04);
+  context.bezierCurveTo(-0.96, -0.02, -0.94, -0.04, -0.92, -0.04);
+  context.stroke();
+
+  context.strokeStyle = withAlpha(accentStrong, outlineAlpha);
+  context.lineWidth = 0.03;
+  context.beginPath();
+  context.moveTo(-0.02, 0.72);
+  context.bezierCurveTo(0.04, 0.88, 0.06, 1.04, 0.02, 1.18);
+  context.stroke();
+
+  context.strokeStyle = withAlpha(accentStrong, outlineAlpha * 0.82);
+  context.lineWidth = 0.022;
+  context.beginPath();
+  context.moveTo(0.08, 0.58);
+  context.bezierCurveTo(0.24, 0.76, 0.32, 0.88, 0.34, 1.02);
+  context.stroke();
+}
+
+function drawBrainContours(context, glow, progress, contourAlpha) {
+  const curves = [
+    [-0.72, -0.28, -0.54, -0.56, -0.16, -0.6, 0.24, -0.44],
+    [-0.74, -0.06, -0.46, -0.26, -0.04, -0.26, 0.38, -0.14],
+    [-0.68, 0.12, -0.38, -0.02, 0.02, 0.04, 0.44, 0.12],
+    [-0.54, 0.3, -0.18, 0.16, 0.22, 0.2, 0.58, 0.34],
+    [-0.34, 0.52, -0.04, 0.42, 0.22, 0.44, 0.48, 0.56]
+  ];
+
+  context.strokeStyle = withAlpha(glow, contourAlpha + progress * 0.06);
+  context.lineWidth = 0.016 + progress * 0.008;
+  curves.forEach(([sx, sy, c1x, c1y, c2x, c2y, ex, ey]) => {
+    context.beginPath();
+    context.moveTo(sx, sy);
+    context.bezierCurveTo(c1x, c1y, c2x, c2y, ex, ey);
+    context.stroke();
+  });
+}
+
+function drawBrainShadowMass(context, accent, progress) {
+  context.fillStyle = withAlpha(accent, 0.05 + progress * 0.06);
+  context.beginPath();
+  context.ellipse(-0.04, -0.02, 0.9, 0.68, 0, 0, Math.PI * 2);
+  context.fill();
+
+  context.fillStyle = withAlpha(accent, 0.04 + progress * 0.04);
+  context.beginPath();
+  context.ellipse(0.34, -0.08, 0.44, 0.34, 0, 0, Math.PI * 2);
+  context.fill();
+}
+
+function renderBrainRoadmap() {
+  const computedStyle = getComputedStyle(document.body);
+  const noteCount = state.notes.length;
+  const progress = getBrainRoadmapProgress(noteCount);
+  const nextMilestone = BRAIN_MILESTONES.find((milestone) => noteCount < milestone.count) || BRAIN_MILESTONES.at(-1);
+
+  if (noteCount < BRAIN_MILESTONES[0].count) {
+    elements.brainRoadmapStatus.textContent = "Next brain form unlocks at 100 notes.";
+  } else if (noteCount >= BRAIN_MILESTONES.at(-1).count) {
+    elements.brainRoadmapStatus.textContent = "Full brain milestone reached at 10,000 notes.";
+  } else {
+    elements.brainRoadmapStatus.textContent = `Current target: ${nextMilestone.count.toLocaleString()} notes (${nextMilestone.cue}).`;
+  }
+
+  elements.brainRoadmapProgress.style.width = `${progress * 100}%`;
+  elements.brainRoadmapGrid.innerHTML = "";
+
+  const currentTargetCount = nextMilestone.count;
+  BRAIN_MILESTONES.forEach((milestone) => {
+    const palette = getBrainMilestonePalette(milestone.count, computedStyle, computedStyle.getPropertyValue("--canvas-glow").trim());
+    const isReached = noteCount >= milestone.count;
+    const isCurrent = noteCount >= BRAIN_MILESTONES.at(-1).count
+      ? milestone.count === BRAIN_MILESTONES.at(-1).count
+      : milestone.count === currentTargetCount;
+    const item = document.createElement("article");
+    item.className = "brain-roadmap__item";
+    item.classList.toggle("is-reached", isReached);
+    item.classList.toggle("is-current", isCurrent);
+    item.classList.toggle("is-locked", !isReached && !isCurrent);
+    item.style.setProperty("--brain-card-outline", palette.outline);
+    item.style.setProperty("--brain-card-outline-soft", withAlpha(palette.outline, 0.46));
+    item.style.setProperty("--brain-card-active", palette.active);
+    item.style.setProperty("--brain-card-active-soft", withAlpha(palette.active, 0.7));
+    item.style.setProperty("--brain-card-active-faint", withAlpha(palette.active, 0.36));
+    item.style.setProperty("--brain-card-ghost", palette.ghost);
+    item.style.setProperty("--brain-card-ghost-soft", withAlpha(palette.ghost, 0.3));
+    item.style.setProperty("--brain-card-glow", palette.glow);
+    item.style.setProperty("--brain-card-glow-soft", withAlpha(palette.glow, 0.28));
+    item.style.setProperty("--brain-card-glow-faint", withAlpha(palette.glow, 0.14));
+    item.style.setProperty("--brain-fill-alpha", String(milestone.fill));
+    item.setAttribute(
+      "aria-label",
+      `${milestone.count.toLocaleString()} notes, ${milestone.cue}${isCurrent ? ", current target" : isReached ? ", reached" : ", locked"}`
+    );
+
+    const preview = document.createElement("div");
+    preview.className = "brain-roadmap__preview";
+    preview.setAttribute("aria-hidden", "true");
+    preview.append(
+      createRoadmapPart("brain-roadmap__halo"),
+      createRoadmapPart("brain-roadmap__mass"),
+      createRoadmapPart("brain-roadmap__fill"),
+      createRoadmapPart("brain-roadmap__lobe brain-roadmap__lobe--front"),
+      createRoadmapPart("brain-roadmap__lobe brain-roadmap__lobe--rear"),
+      createRoadmapPart("brain-roadmap__cerebellum"),
+      createRoadmapPart("brain-roadmap__stem")
+    );
+
+    const countLabel = document.createElement("strong");
+    countLabel.textContent = milestone.label;
+
+    const cue = document.createElement("small");
+    cue.textContent = milestone.cue;
+
+    item.append(preview, countLabel, cue);
+    elements.brainRoadmapGrid.appendChild(item);
+  });
+}
+
+function createRoadmapPart(className) {
+  const part = document.createElement("span");
+  part.className = className;
+  return part;
+}
+
+function getBrainRoadmapProgress(noteCount) {
+  if (noteCount <= BRAIN_MILESTONES[0].count) {
+    return 0;
+  }
+  if (noteCount >= BRAIN_MILESTONES.at(-1).count) {
+    return 1;
+  }
+
+  for (let index = 0; index < BRAIN_MILESTONES.length - 1; index += 1) {
+    const start = BRAIN_MILESTONES[index].count;
+    const end = BRAIN_MILESTONES[index + 1].count;
+    if (noteCount >= start && noteCount < end) {
+      const segmentProgress = (noteCount - start) / (end - start);
+      return (index + segmentProgress) / (BRAIN_MILESTONES.length - 1);
+    }
+  }
+
+  return 1;
+}
+
+function getBrainMilestonePalette(noteCount, computedStyle, fallbackGlow) {
+  const milestones = BRAIN_MILESTONES.map((milestone) => milestone.count);
+  const colors = milestones.map((milestone) => computedStyle.getPropertyValue(`--brain-${milestone}`).trim());
+  const cappedCount = Math.max(milestones[0], Math.min(noteCount, milestones[milestones.length - 1]));
+
+  let startIndex = 0;
+  let endIndex = milestones.length - 1;
+  for (let index = 0; index < milestones.length - 1; index += 1) {
+    if (cappedCount >= milestones[index] && cappedCount <= milestones[index + 1]) {
+      startIndex = index;
+      endIndex = index + 1;
+      break;
+    }
+  }
+
+  const startMilestone = milestones[startIndex];
+  const endMilestone = milestones[endIndex];
+  const ratio = startMilestone === endMilestone ? 0 : (cappedCount - startMilestone) / (endMilestone - startMilestone);
+  const base = mixColors(colors[startIndex], colors[endIndex], ratio);
+  const outline = mixColors(base, "#ffffff", state.currentTheme === "dark" ? 0.08 : 0.03);
+  const ghost = mixColors(base, computedStyle.getPropertyValue("--panel-strong").trim(), 0.5);
+  const glowBase = fallbackGlow || base;
+  const glow = mixColors(base, glowBase, 0.32);
+  const tierProgress = startIndex / (milestones.length - 1) + ratio / (milestones.length - 1);
+
+  return {
+    active: base,
+    ghost,
+    outline,
+    glow,
+    outlineAlpha: 0.24 + tierProgress * 0.28,
+    contourAlpha: 0.12 + tierProgress * 0.14,
+    activeAlphaBoost: 0.1 + tierProgress * 0.12,
+    ghostAlphaBoost: tierProgress * 0.04,
+    glowAlphaBoost: tierProgress * 0.12
+  };
+}
+
+function getBrainPointCloud(totalPoints) {
+  if (brainPointCloudCache && brainPointCloudCache.length >= totalPoints) {
+    return brainPointCloudCache.slice(0, totalPoints);
+  }
+
+  const points = [];
+  let attempt = 0;
+
+  while (points.length < totalPoints && attempt < totalPoints * 60) {
+    const x = -1.04 + 2.12 * pseudoRandom(attempt * 2.13);
+    const y = -0.96 + 1.98 * pseudoRandom(attempt * 5.71 + 19);
+
+    if (isInsideBrainShape(x, y)) {
+      const ridge = Math.abs(Math.sin((x + 1.3) * 7.1 + y * 8.8));
+      const swirl = Math.abs(Math.cos((x - y) * 5.4));
+      const depth = Math.max(0.1, 1 - Math.abs(y + 0.03) * 0.72);
+      points.push({
+        x,
+        y,
+        weight: 0.38 + ridge * 0.4 + swirl * 0.22,
+        depth
+      });
+    }
+    attempt += 1;
+  }
+
+  points.sort((left, right) => right.weight + right.depth - (left.weight + left.depth));
+  brainPointCloudCache = points;
+  return points;
+}
+
+function isInsideBrainShape(x, y) {
+  const cerebrum =
+    ellipse(x + 0.04, y + 0.02, 0.96, 0.78) ||
+    ellipse(x - 0.34, y - 0.08, 0.54, 0.46) ||
+    ellipse(x + 0.32, y - 0.02, 0.52, 0.46) ||
+    ellipse(x + 0.58, y - 0.16, 0.24, 0.22);
+  const cerebellum = ellipse(x + 0.18, y - 0.58, 0.3, 0.22);
+  const stem = ellipse(x - 0.04, y - 0.96, 0.09, 0.24);
+  const frontCut = ellipse(x - 1.04, y + 0.12, 0.24, 0.22);
+  const lowerCut = ellipse(x + 0.74, y - 0.62, 0.26, 0.18);
+
+  return (cerebrum || cerebellum || stem) && !frontCut && !lowerCut;
+}
+
+function ellipse(x, y, rx, ry) {
+  return (x * x) / (rx * rx) + (y * y) / (ry * ry) <= 1;
+}
+
+function pseudoRandom(seed) {
+  const value = Math.sin(seed * 12.9898) * 43758.5453;
+  return value - Math.floor(value);
+}
+
+function withAlpha(color, alpha) {
+  const rgb = parseColorToRgb(color);
+  if (rgb) {
+    const safeAlpha = Math.max(0, Math.min(alpha, 1));
+    return `rgba(${rgb.red}, ${rgb.green}, ${rgb.blue}, ${safeAlpha})`;
+  }
+
+  if (!color) {
+    return `rgba(0, 0, 0, ${alpha})`;
+  }
+  return color;
+}
+
+function mixColors(from, to, ratio) {
+  const start = parseColorToRgb(from) || { red: 0, green: 0, blue: 0 };
+  const end = parseColorToRgb(to) || start;
+  const progress = Math.max(0, Math.min(ratio, 1));
+
+  return `rgb(${Math.round(interpolate(start.red, end.red, progress))}, ${Math.round(
+    interpolate(start.green, end.green, progress)
+  )}, ${Math.round(interpolate(start.blue, end.blue, progress))})`;
+}
+
+function parseColorToRgb(color) {
+  if (!color) {
+    return null;
+  }
+
+  if (color.startsWith("#")) {
+    const hex = color.slice(1);
+    const normalized = hex.length === 3
+      ? hex
+          .split("")
+          .map((part) => part + part)
+          .join("")
+      : hex;
+    const int = Number.parseInt(normalized, 16);
+    return {
+      red: (int >> 16) & 255,
+      green: (int >> 8) & 255,
+      blue: int & 255
+    };
+  }
+
+  if (color.startsWith("rgb(")) {
+    const [red, green, blue] = color
+      .replace("rgb(", "")
+      .replace(")", "")
+      .split(",")
+      .map((value) => Number.parseFloat(value.trim()));
+    return { red, green, blue };
+  }
+
+  if (color.startsWith("rgba(")) {
+    const [red, green, blue] = color
+      .replace("rgba(", "")
+      .replace(")", "")
+      .split(",")
+      .slice(0, 3)
+      .map((value) => Number.parseFloat(value.trim()));
+    return { red, green, blue };
+  }
+
+  return null;
+}
+
+function interpolate(start, end, ratio) {
+  return start + (end - start) * ratio;
 }
 
 function drawLine(context, from, to) {
@@ -457,6 +989,7 @@ function createNote() {
   state.selectedDate = formatDateKey(timestamp);
   state.calendarMonth = startOfMonth(new Date(timestamp));
   persistNotes();
+  markOnboardingSeen();
   setAutosaveMessage("New note created");
   renderApp();
   elements.noteTitle.focus();
@@ -482,7 +1015,7 @@ function deleteSelectedNote() {
   ensureSelection();
   setAutosaveMessage("Note deleted");
   renderApp();
-  elements.newNoteButton.focus();
+  elements.focusModeButton.focus();
 }
 
 function undoDelete() {
@@ -521,6 +1054,34 @@ function clearFilters() {
   state.calendarMonth = startOfMonth(new Date());
   elements.searchInput.value = "";
   renderApp();
+}
+
+function toggleFocusMode() {
+  state.isFocusMode = !state.isFocusMode;
+  state.isCalendarOpen = false;
+  state.isSettingsOpen = false;
+  state.isShortcutHelpOpen = false;
+  persistPreference(STORAGE_KEYS.focus, String(state.isFocusMode));
+  renderApp();
+}
+
+function openShortcutHelp() {
+  state.isCalendarOpen = false;
+  state.isSettingsOpen = false;
+  state.isShortcutHelpOpen = true;
+  renderApp();
+  elements.closeShortcutsButton.focus();
+}
+
+function closeShortcutHelp() {
+  state.isShortcutHelpOpen = false;
+  renderShortcutHelpModal();
+  elements.focusModeButton.focus();
+}
+
+function dismissOnboarding() {
+  markOnboardingSeen();
+  renderEditor();
 }
 
 function updateSelectedNoteField(field, value) {
@@ -581,12 +1142,14 @@ async function importNotes(event) {
     const replacedCount = importedNotes.filter((note) => existingIds.has(note.id)).length;
     const addedCount = importedNotes.length - replacedCount;
 
-    state.notes = Array.from(mergedNotes.values());
-    sortNotesInPlace();
-    state.selectedNoteId = importedNotes[0].id;
-    persistNotes();
-    setAutosaveMessage(`Import complete: ${addedCount} added, ${replacedCount} replaced`);
-    renderApp();
+    state.pendingImport = {
+      fileName: file.name,
+      importedNotes,
+      addedCount,
+      replacedCount
+    };
+    renderImportConfirmModal();
+    elements.confirmImportButton.focus();
   } catch (error) {
     console.error("Failed to import notes", error);
     setAutosaveMessage("Import failed: invalid JSON file");
@@ -594,6 +1157,34 @@ async function importNotes(event) {
   } finally {
     event.target.value = "";
   }
+}
+
+function confirmPendingImport() {
+  if (!state.pendingImport) {
+    return;
+  }
+
+  const mergedNotes = new Map(state.notes.map((note) => [note.id, note]));
+  state.pendingImport.importedNotes.forEach((note) => {
+    mergedNotes.set(note.id, note);
+  });
+
+  state.notes = Array.from(mergedNotes.values());
+  sortNotesInPlace();
+  state.selectedNoteId = state.pendingImport.importedNotes[0].id;
+  persistNotes();
+  markOnboardingSeen();
+  setAutosaveMessage(
+    `Import complete: ${state.pendingImport.addedCount} added, ${state.pendingImport.replacedCount} replaced`
+  );
+  state.pendingImport = null;
+  renderApp();
+}
+
+function cancelPendingImport() {
+  state.pendingImport = null;
+  renderImportConfirmModal();
+  elements.importButton.focus();
 }
 
 function handleKeyboardShortcuts(event) {
@@ -605,6 +1196,11 @@ function handleKeyboardShortcuts(event) {
     return;
   }
 
+  if (event.key === "Escape" && state.pendingImport) {
+    cancelPendingImport();
+    return;
+  }
+
   if (event.key === "Escape" && state.isCalendarOpen) {
     state.isCalendarOpen = false;
     renderCalendarPopover();
@@ -612,10 +1208,42 @@ function handleKeyboardShortcuts(event) {
     return;
   }
 
+  if (event.key === "Escape" && state.isSettingsOpen) {
+    closeSettingsPopover();
+    return;
+  }
+
+  if (event.key === "Escape" && state.isShortcutHelpOpen) {
+    closeShortcutHelp();
+    return;
+  }
+
+  if (state.notePendingDeleteId || state.isShortcutHelpOpen || state.pendingImport) {
+    return;
+  }
+
+  if (!isTyping && event.key === "?") {
+    event.preventDefault();
+    openShortcutHelp();
+    return;
+  }
+
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
     event.preventDefault();
     elements.searchInput.focus();
     elements.searchInput.select();
+    return;
+  }
+
+  if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key === ".") {
+    event.preventDefault();
+    toggleFocusMode();
+    return;
+  }
+
+  if ((event.metaKey || event.ctrlKey) && event.key === "Backspace") {
+    event.preventDefault();
+    clearFilters();
     return;
   }
 
@@ -627,11 +1255,44 @@ function handleKeyboardShortcuts(event) {
   if (!isTyping && !event.metaKey && !event.ctrlKey && !event.altKey && event.key.toLowerCase() === "n") {
     event.preventDefault();
     createNote();
+    return;
+  }
+
+  if (!isTyping && !event.metaKey && !event.ctrlKey && !event.altKey && event.key.toLowerCase() === "j") {
+    event.preventDefault();
+    selectAdjacentVisibleNote(1);
+    return;
+  }
+
+  if (!isTyping && !event.metaKey && !event.ctrlKey && !event.altKey && event.key.toLowerCase() === "k") {
+    event.preventDefault();
+    selectAdjacentVisibleNote(-1);
   }
 }
 
 function getVisibleNotes() {
   return state.notes.filter((note) => matchesSearch(note, state.searchQuery) && matchesSelectedDate(note, state.selectedDate));
+}
+
+function shouldShowOnboarding() {
+  return state.notes.length === 0 && !state.hasSeenOnboarding;
+}
+
+function selectAdjacentVisibleNote(direction) {
+  const visibleNotes = getVisibleNotes();
+  if (visibleNotes.length === 0) {
+    return;
+  }
+
+  const currentIndex = visibleNotes.findIndex((note) => note.id === state.selectedNoteId);
+  if (currentIndex === -1) {
+    state.selectedNoteId = direction > 0 ? visibleNotes[0].id : visibleNotes[visibleNotes.length - 1].id;
+  } else {
+    const nextIndex = Math.min(Math.max(currentIndex + direction, 0), visibleNotes.length - 1);
+    state.selectedNoteId = visibleNotes[nextIndex].id;
+  }
+
+  renderApp();
 }
 
 function matchesSearch(note, query) {
@@ -823,6 +1484,37 @@ function persistPreference(key, value) {
   localStorage.setItem(key, value);
 }
 
+function loadUiSettings() {
+  const raw = localStorage.getItem(STORAGE_KEYS.uiSettings);
+  if (!raw) {
+    return { ...DEFAULT_UI_SETTINGS };
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      showThemeControl: parsed.showThemeControl !== false,
+      showViewControl: parsed.showViewControl !== false,
+      showBrainRoadmap: parsed.showBrainRoadmap !== false
+    };
+  } catch (error) {
+    console.error("Failed to parse UI settings", error);
+    return { ...DEFAULT_UI_SETTINGS };
+  }
+}
+
+function persistUiSettings() {
+  localStorage.setItem(STORAGE_KEYS.uiSettings, JSON.stringify(state.uiSettings));
+}
+
+function markOnboardingSeen() {
+  if (state.hasSeenOnboarding) {
+    return;
+  }
+  state.hasSeenOnboarding = true;
+  persistPreference(STORAGE_KEYS.onboarding, "true");
+}
+
 function startOfMonth(value) {
   const date = value instanceof Date ? new Date(value) : new Date(value);
   return new Date(date.getFullYear(), date.getMonth(), 1);
@@ -847,22 +1539,45 @@ function updateEditorMeta(note) {
 }
 
 function toggleCalendarPopover() {
+  state.isShortcutHelpOpen = false;
+  state.isSettingsOpen = false;
+  renderSettingsPopover();
   state.isCalendarOpen = !state.isCalendarOpen;
   renderCalendarPopover();
 }
 
-function handleDocumentClick(event) {
-  if (!state.isCalendarOpen) {
-    return;
-  }
-
-  const target = event.target;
-  if (elements.calendarPopover.contains(target) || elements.calendarTrigger.contains(target)) {
-    return;
-  }
-
+function toggleSettingsPopover() {
   state.isCalendarOpen = false;
+  state.isShortcutHelpOpen = false;
   renderCalendarPopover();
+  state.isSettingsOpen = !state.isSettingsOpen;
+  renderSettingsPopover();
+}
+
+function closeSettingsPopover() {
+  state.isSettingsOpen = false;
+  renderSettingsPopover();
+  elements.settingsButton.focus();
+}
+
+function updateUiSetting(key, value) {
+  state.uiSettings[key] = value;
+  persistUiSettings();
+  renderApp();
+}
+
+function handleDocumentClick(event) {
+  const target = event.target;
+
+  if (state.isCalendarOpen && !elements.calendarPopover.contains(target) && !elements.calendarTrigger.contains(target)) {
+    state.isCalendarOpen = false;
+    renderCalendarPopover();
+  }
+
+  if (state.isSettingsOpen && !elements.settingsPopover.contains(target) && !elements.settingsButton.contains(target)) {
+    state.isSettingsOpen = false;
+    renderSettingsPopover();
+  }
 }
 
 function formatCompactDate(dateKey) {

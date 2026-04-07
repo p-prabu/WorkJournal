@@ -14,9 +14,28 @@
             <p class="eyebrow">Offline-first notes</p>
             <h1>Mind Journal</h1>
           </div>
-          <button class="button button--primary" id="new-note-button" type="button">
-            New Note
-          </button>
+          <div class="sidebar__top-actions">
+            <button class="button button--ghost button--icon" id="shortcut-help-button" type="button" aria-label="Open shortcuts help">
+              ?
+            </button>
+            <button
+              class="button button--ghost button--icon"
+              id="settings-button"
+              type="button"
+              aria-label="Open display settings"
+              aria-haspopup="dialog"
+              aria-expanded="false"
+              aria-controls="settings-popover"
+            >
+              &#9881;
+            </button>
+            <button class="button button--ghost" id="focus-mode-button" type="button">
+              Focus Mode
+            </button>
+            <button class="button button--primary" id="new-note-button" type="button">
+              New Note
+            </button>
+          </div>
         </div>
 
         <section class="toolbar">
@@ -35,7 +54,7 @@
 
           <div class="toolbar__row">
             <div class="view-tools">
-              <div class="segmented-control" role="tablist" aria-label="Note view">
+              <div class="segmented-control" id="view-control-wrapper" role="tablist" aria-label="Note view">
                 <button class="segmented-control__button" id="view-card" data-view="card" type="button">
                   Cards
                 </button>
@@ -59,7 +78,7 @@
           </div>
 
           <div class="toolbar__row toolbar__row--actions">
-            <label class="theme-picker theme-picker--inline" for="theme-select">
+            <label class="theme-picker theme-picker--inline" id="theme-control-wrapper" for="theme-select">
               <span>Theme</span>
               <select id="theme-select" name="theme">
                 <option value="soft-gray">Soft Gray</option>
@@ -85,7 +104,47 @@
             </button>
           </div>
 
+          <p class="safety-note" id="safety-note">
+            Backup tip: export your notes before importing. Imported files can replace existing notes that share the same ID.
+          </p>
+
           <input id="import-file-input" type="file" accept="application/json,.json" class="hidden" />
+
+          <section
+            class="settings-popover panel panel--inner hidden"
+            id="settings-popover"
+            aria-labelledby="settings-heading"
+            role="dialog"
+            aria-modal="false"
+          >
+            <div>
+              <p class="eyebrow">Display settings</p>
+              <h2 id="settings-heading">Show or hide controls</h2>
+            </div>
+            <div class="settings-list">
+              <label class="settings-toggle" for="toggle-theme-control">
+                <span>
+                  <strong>Theme</strong>
+                  <small>Show the theme picker in the toolbar.</small>
+                </span>
+                <input id="toggle-theme-control" type="checkbox" />
+              </label>
+              <label class="settings-toggle" for="toggle-view-control">
+                <span>
+                  <strong>Cards / Timeline</strong>
+                  <small>Show the browse mode switch above the Library.</small>
+                </span>
+                <input id="toggle-view-control" type="checkbox" />
+              </label>
+              <label class="settings-toggle" for="toggle-brain-roadmap">
+                <span>
+                  <strong>Brain Roadmap</strong>
+                  <small>Show the milestone roadmap under the Activity Map.</small>
+                </span>
+                <input id="toggle-brain-roadmap" type="checkbox" />
+              </label>
+            </div>
+          </section>
 
           <section
             class="calendar panel panel--inner hidden"
@@ -139,6 +198,19 @@
             </p>
           </div>
           <canvas id="brain-canvas" width="640" height="260" aria-label="Decorative note activity visualization"></canvas>
+          <div class="brain-roadmap panel panel--inner" id="brain-roadmap" aria-labelledby="brain-roadmap-heading">
+            <div class="brain-roadmap__header">
+              <div>
+                <p class="eyebrow">Brain roadmap</p>
+                <h3 id="brain-roadmap-heading">Achievement path</h3>
+              </div>
+              <p class="brain-roadmap__status" id="brain-roadmap-status">Next brain form unlocks at 100 notes.</p>
+            </div>
+            <div class="brain-roadmap__progress" aria-hidden="true">
+              <span id="brain-roadmap-progress"></span>
+            </div>
+            <div class="brain-roadmap__grid" id="brain-roadmap-grid"></div>
+          </div>
         </section>
 
         <section class="editor panel" id="editor-panel" aria-labelledby="editor-heading">
@@ -167,6 +239,19 @@
             <div class="empty-state" id="editor-empty-state">
               <h3>Start a fresh entry</h3>
               <p>Create a note to begin capturing ideas, reflections, and quick fragments.</p>
+              <div class="welcome-panel hidden" id="onboarding-panel">
+                <p class="eyebrow">Welcome</p>
+                <h4>Quick start guide</h4>
+                <ul class="welcome-panel__list">
+                  <li>Use Search to find notes instantly.</li>
+                  <li>Toggle Focus Mode when you want a quieter layout.</li>
+                  <li>Use Export JSON for backups before major changes.</li>
+                  <li>Press <code>?</code> to view Mac and Windows shortcuts.</li>
+                </ul>
+                <button class="button button--ghost" id="dismiss-onboarding-button" type="button">
+                  Got it
+                </button>
+              </div>
             </div>
 
             <form class="editor-form hidden" id="editor-form">
@@ -242,6 +327,113 @@
           </button>
           <button class="button button--danger" id="confirm-delete-button" type="button">
             Delete Note
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop hidden" id="shortcuts-modal-backdrop" aria-hidden="true">
+      <section
+        class="modal panel modal--wide"
+        id="shortcuts-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="shortcuts-modal-heading"
+        aria-describedby="shortcuts-modal-description"
+      >
+        <div class="modal__topline">
+          <div>
+            <p class="eyebrow">Keyboard shortcuts</p>
+            <h2 id="shortcuts-modal-heading">Shortcuts for Mac and Windows</h2>
+          </div>
+          <button class="icon-button" id="close-shortcuts-button" type="button" aria-label="Close shortcuts help">
+            &times;
+          </button>
+        </div>
+        <p class="modal__description" id="shortcuts-modal-description">
+          Use these shortcuts when you are not typing in a field. The <code>?</code> shortcut opens this panel.
+        </p>
+
+        <div class="shortcut-grid-wrap">
+          <div class="shortcut-grid" aria-label="Shortcut reference">
+            <div class="shortcut-grid__header">Action</div>
+            <div class="shortcut-grid__header">Mac</div>
+            <div class="shortcut-grid__header">Windows</div>
+
+            <div>Open shortcut help</div>
+            <kbd>?</kbd>
+            <kbd>?</kbd>
+
+            <div>Create new note</div>
+            <kbd>N</kbd>
+            <kbd>N</kbd>
+
+            <div>Focus search</div>
+            <kbd>Cmd + F</kbd>
+            <kbd>Ctrl + F</kbd>
+
+            <div>Toggle Focus Mode</div>
+            <kbd>Cmd + .</kbd>
+            <kbd>Ctrl + .</kbd>
+
+            <div>Clear filters</div>
+            <kbd>Cmd + Delete</kbd>
+            <kbd>Ctrl + Backspace</kbd>
+
+            <div>Next visible note</div>
+            <kbd>J</kbd>
+            <kbd>J</kbd>
+
+            <div>Previous visible note</div>
+            <kbd>K</kbd>
+            <kbd>K</kbd>
+
+            <div>Close editor or dialog</div>
+            <kbd>Esc</kbd>
+            <kbd>Esc</kbd>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop hidden" id="import-confirm-modal-backdrop" aria-hidden="true">
+      <section
+        class="modal panel"
+        id="import-confirm-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="import-confirm-heading"
+        aria-describedby="import-confirm-description"
+      >
+        <p class="eyebrow">Import confirmation</p>
+        <h2 id="import-confirm-heading">Review import</h2>
+        <p class="modal__description" id="import-confirm-description">
+          Importing can add new notes and replace existing notes that use the same ID.
+        </p>
+        <dl class="import-summary">
+          <div>
+            <dt>File</dt>
+            <dd id="import-summary-file">-</dd>
+          </div>
+          <div>
+            <dt>Valid notes</dt>
+            <dd id="import-summary-total">-</dd>
+          </div>
+          <div>
+            <dt>Added</dt>
+            <dd id="import-summary-added">-</dd>
+          </div>
+          <div>
+            <dt>Replaced</dt>
+            <dd id="import-summary-replaced">-</dd>
+          </div>
+        </dl>
+        <div class="modal__actions">
+          <button class="button button--ghost" id="cancel-import-button" type="button">
+            Cancel
+          </button>
+          <button class="button button--primary" id="confirm-import-button" type="button">
+            Import Notes
           </button>
         </div>
       </section>

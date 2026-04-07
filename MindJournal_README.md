@@ -12,6 +12,8 @@ A minimal, Apple-inspired **offline-first notes & journal web app** built using 
 - 🕰️ Timeline and Card view modes
 - ↕️ Sort by updated or created date
 - 🏷️ Clickable Library tags for quick filtering
+- 🎯 Persistent Focus Mode for distraction-free writing
+- 👋 First-use onboarding guidance
 - 🎨 Light, Dark, and Soft Gray themes
 - 🧠 Brain-style visualization that grows with notes
 - 💾 LocalStorage persistence (works offline)
@@ -24,11 +26,16 @@ A minimal, Apple-inspired **offline-first notes & journal web app** built using 
 
 ## ⌨️ Keyboard Shortcuts
 
-| Shortcut | Action |
-|--------|--------|
-| N | Create new note |
-| Esc | Close editor or dismiss open overlays |
-| Ctrl / Cmd + F | Focus search |
+| Action | Mac | Windows |
+|--------|--------|--------|
+| Open shortcut help | `?` | `?` |
+| Create new note | `N` | `N` |
+| Close editor or dismiss open overlays | `Esc` | `Esc` |
+| Focus search | `Cmd + F` | `Ctrl + F` |
+| Toggle Focus Mode | `Cmd + .` | `Ctrl + .` |
+| Clear search and date filters | `Cmd + Delete` | `Ctrl + Backspace` |
+| Select next visible note | `J` | `J` |
+| Select previous visible note | `K` | `K` |
 
 ---
 
@@ -71,6 +78,8 @@ No installation required.
 - Theme key: `mind_journal_theme`
 - View key: `mind_journal_view`
 - Sort key: `mind_journal_sort`
+- Focus key: `mind_journal_focus_mode`
+- Onboarding key: `mind_journal_has_seen_onboarding`
 
 ---
 
@@ -83,6 +92,7 @@ mind-journal-notes.json
 ```
 
 Click **Import JSON** to restore or merge notes from a previously exported JSON file.
+The app shows an import review step before applying imported notes.
 After import, the app reports how many notes were added and how many were replaced.
 
 ---
@@ -107,6 +117,7 @@ The app includes a dynamic **brain-style visualization**:
 ## 🧭 Layout
 
 - Left sidebar: search, date filter, theme switcher, view switcher, Library list
+- Focus Mode hides the utility controls and keeps Search, Library, Activity Map, and Editor visible
 - Left sidebar controls also include sort and quick tag filtering from the Library
 - Top right: activity map visualization
 - Right panel: note editor for the currently selected note
