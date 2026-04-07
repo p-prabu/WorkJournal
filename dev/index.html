@@ -10,28 +10,26 @@
     <div class="app-shell">
       <aside class="sidebar panel">
         <div class="sidebar__top">
-          <div>
+          <div class="sidebar__top-row">
             <p class="eyebrow">Offline-first notes</p>
-            <h1>Mind Journal</h1>
+            <div class="sidebar__top-actions">
+              <button
+                class="button button--ghost button--icon"
+                id="settings-button"
+                type="button"
+                aria-label="Open display settings"
+                aria-haspopup="dialog"
+                aria-expanded="false"
+                aria-controls="settings-popover"
+              >
+                &#9881;
+              </button>
+              <button class="button button--ghost" id="focus-mode-button" type="button">
+                Focus
+              </button>
+            </div>
           </div>
-          <div class="sidebar__top-actions">
-            <button class="button button--ghost button--icon" id="shortcut-help-button" type="button" aria-label="Open shortcuts help">
-              ?
-            </button>
-            <button
-              class="button button--ghost button--icon"
-              id="settings-button"
-              type="button"
-              aria-label="Open display settings"
-              aria-haspopup="dialog"
-              aria-expanded="false"
-              aria-controls="settings-popover"
-            >
-              &#9881;
-            </button>
-            <button class="button button--ghost" id="focus-mode-button" type="button">
-              Focus Mode
-            </button>
+          <div class="sidebar__title-row">
             <button class="button button--primary" id="new-note-button" type="button">
               New Note
             </button>
@@ -52,62 +50,6 @@
             </label>
           </div>
 
-          <div class="toolbar__row">
-            <div class="view-tools">
-              <div class="segmented-control" id="view-control-wrapper" role="tablist" aria-label="Note view">
-                <button class="segmented-control__button" id="view-card" data-view="card" type="button">
-                  Cards
-                </button>
-                <button class="segmented-control__button" id="view-timeline" data-view="timeline" type="button">
-                  Timeline
-                </button>
-              </div>
-
-              <button
-                class="button button--ghost calendar-trigger"
-                id="calendar-trigger"
-                type="button"
-                aria-haspopup="dialog"
-                aria-expanded="false"
-                aria-controls="calendar-popover"
-              >
-                <span class="calendar-trigger__icon" aria-hidden="true">&#128197;</span>
-                <span id="calendar-trigger-text">Any date</span>
-              </button>
-            </div>
-          </div>
-
-          <div class="toolbar__row toolbar__row--actions">
-            <label class="theme-picker theme-picker--inline" id="theme-control-wrapper" for="theme-select">
-              <span>Theme</span>
-              <select id="theme-select" name="theme">
-                <option value="soft-gray">Soft Gray</option>
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-              </select>
-            </label>
-            <label class="theme-picker theme-picker--inline" for="sort-select">
-              <span>Sort</span>
-              <select id="sort-select" name="sort">
-                <option value="updated">Updated</option>
-                <option value="created">Created</option>
-              </select>
-            </label>
-            <button class="button button--ghost" id="clear-filters-button" type="button">
-              Clear Filters
-            </button>
-            <button class="button button--ghost" id="import-button" type="button">
-              Import JSON
-            </button>
-            <button class="button button--ghost" id="export-button" type="button">
-              Export JSON
-            </button>
-          </div>
-
-          <p class="safety-note" id="safety-note">
-            Backup tip: export your notes before importing. Imported files can replace existing notes that share the same ID.
-          </p>
-
           <input id="import-file-input" type="file" accept="application/json,.json" class="hidden" />
 
           <section
@@ -118,24 +60,39 @@
             aria-modal="false"
           >
             <div>
-              <p class="eyebrow">Display settings</p>
-              <h2 id="settings-heading">Show or hide controls</h2>
+              <p class="eyebrow">Preferences</p>
+              <h2 id="settings-heading">Reading and layout</h2>
             </div>
             <div class="settings-list">
-              <label class="settings-toggle" for="toggle-theme-control">
-                <span>
-                  <strong>Theme</strong>
-                  <small>Show the theme picker in the toolbar.</small>
-                </span>
-                <input id="toggle-theme-control" type="checkbox" />
+              <label class="theme-picker" id="theme-control-wrapper" for="theme-select">
+                <span>Theme</span>
+                <select id="theme-select" name="theme">
+                  <option value="soft-gray">Soft Gray</option>
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                </select>
               </label>
-              <label class="settings-toggle" for="toggle-view-control">
-                <span>
-                  <strong>Cards / Timeline</strong>
-                  <small>Show the browse mode switch above the Library.</small>
-                </span>
-                <input id="toggle-view-control" type="checkbox" />
+
+              <div class="settings-group">
+                <span class="settings-group__label">Library view</span>
+                <div class="segmented-control" id="view-control-wrapper" role="tablist" aria-label="Note view">
+                  <button class="segmented-control__button" id="view-card" data-view="card" type="button">
+                    Cards
+                  </button>
+                  <button class="segmented-control__button" id="view-timeline" data-view="timeline" type="button">
+                    Timeline
+                  </button>
+                </div>
+              </div>
+
+              <label class="theme-picker" for="sort-select">
+                <span>Sort</span>
+                <select id="sort-select" name="sort">
+                  <option value="updated">Updated</option>
+                  <option value="created">Created</option>
+                </select>
               </label>
+
               <label class="settings-toggle" for="toggle-brain-roadmap">
                 <span>
                   <strong>Brain Roadmap</strong>
@@ -143,34 +100,24 @@
                 </span>
                 <input id="toggle-brain-roadmap" type="checkbox" />
               </label>
-            </div>
-          </section>
 
-          <section
-            class="calendar panel panel--inner hidden"
-            id="calendar-popover"
-            aria-labelledby="calendar-heading"
-            role="dialog"
-            aria-modal="false"
-          >
-            <div class="calendar__header">
-              <div>
-                <p class="eyebrow">Filter by created date</p>
-                <h2 id="calendar-heading">Calendar</h2>
-              </div>
-              <div class="calendar__nav">
-                <button class="icon-button" id="calendar-prev" type="button" aria-label="Previous month">
-                  &#8249;
+              <div class="settings-actions">
+                <button class="button button--ghost" id="import-button" type="button">
+                  Import JSON
                 </button>
-                <button class="icon-button" id="calendar-today" type="button">Today</button>
-                <button class="icon-button" id="calendar-next" type="button" aria-label="Next month">
-                  &#8250;
+                <button class="button button--ghost" id="export-button" type="button">
+                  Export JSON
                 </button>
               </div>
+
+              <button class="button button--ghost settings-shortcuts-button" id="settings-shortcuts-button" type="button">
+                Keyboard shortcuts
+              </button>
+
+              <p class="safety-note" id="safety-note">
+                Backup tip: export your notes before importing. Imported files can replace existing notes that share the same ID.
+              </p>
             </div>
-            <div class="calendar__month" id="calendar-month-label"></div>
-            <div class="calendar__weekdays" id="calendar-weekdays" aria-hidden="true"></div>
-            <div class="calendar__grid" id="calendar-grid"></div>
           </section>
         </section>
 
@@ -185,9 +132,9 @@
                 class="icon-button"
                 id="open-folder-button"
                 type="button"
-                aria-label="Open note browser"
+                aria-label="Open archive browser"
               >
-                &#128194;
+                &#128230;
               </button>
               <p class="library__summary" id="library-summary"></p>
             </div>
@@ -206,6 +153,7 @@
             <p id="visual-summary">
               Your note graph thickens as your journal grows.
             </p>
+            <p class="visual__brand">Mind Journal</p>
           </div>
           <canvas id="brain-canvas" width="640" height="260" aria-label="Decorative note activity visualization"></canvas>
           <div class="brain-roadmap panel panel--inner" id="brain-roadmap" aria-labelledby="brain-roadmap-heading">
@@ -281,6 +229,11 @@
                 />
               </label>
 
+              <div class="tag-suggestions hidden" id="tag-suggestions">
+                <p class="tag-suggestions__label">Used tags</p>
+                <div class="tag-suggestions__chips" id="tag-suggestions-list"></div>
+              </div>
+
               <label class="field field--grow" for="note-content">
                 <span>Content</span>
                 <textarea
@@ -353,15 +306,15 @@
       >
         <div class="modal__topline">
           <div>
-            <p class="eyebrow">Open folder</p>
-            <h2 id="folder-browser-heading">Browse all notes</h2>
+            <p class="eyebrow">Archive</p>
+            <h2 id="folder-browser-heading">Browse archive</h2>
           </div>
-          <button class="icon-button" id="close-folder-browser-button" type="button" aria-label="Close note browser">
+          <button class="icon-button" id="close-folder-browser-button" type="button" aria-label="Close archive browser">
             &times;
           </button>
         </div>
         <p class="modal__description" id="folder-browser-description">
-          Search across all notes, then narrow by tags or by month when your journal gets larger.
+          Search across your full archive, then narrow by tags or by month when your journal gets larger.
         </p>
         <div class="folder-browser__search">
           <label class="search-field" for="folder-search-input">
