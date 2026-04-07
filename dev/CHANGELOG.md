@@ -11,6 +11,7 @@ This file is the version and feature history for Mind Journal. Use it to record 
 - Brain mode now uses theme-aware milestone colors at 100, 1000, 2000, 4000, 7000, and 10,000 notes, with smooth interpolation between them
 - Activity Map now includes a compact Brain Roadmap showing the 100, 1000, 2000, 4000, 7000, and 10,000 note milestones
 - Added a Settings popover for showing or hiding the Theme picker, Cards/Timeline switch, and Brain Roadmap
+- Focus Mode now keeps the New Note button visible and uses `Cmd/Ctrl + .` as the toggle shortcut
 
 ### Notes
 

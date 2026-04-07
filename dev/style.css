@@ -546,7 +546,6 @@ p {
   overflow: hidden;
 }
 
-body.focus-mode #new-note-button,
 body.focus-mode .toolbar__row,
 body.focus-mode .toolbar__row--actions {
   display: none !important;

@@ -1235,7 +1235,7 @@ function handleKeyboardShortcuts(event) {
     return;
   }
 
-  if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === ">") {
+  if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key === ".") {
     event.preventDefault();
     toggleFocusMode();
     return;

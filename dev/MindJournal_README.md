@@ -32,7 +32,7 @@ A minimal, Apple-inspired **offline-first notes & journal web app** built using 
 | Create new note | `N` | `N` |
 | Close editor or dismiss open overlays | `Esc` | `Esc` |
 | Focus search | `Cmd + F` | `Ctrl + F` |
-| Toggle Focus Mode | `Cmd + Shift + .` | `Ctrl + Shift + .` |
+| Toggle Focus Mode | `Cmd + .` | `Ctrl + .` |
 | Clear search and date filters | `Cmd + Delete` | `Ctrl + Backspace` |
 | Select next visible note | `J` | `J` |
 | Select previous visible note | `K` | `K` |
