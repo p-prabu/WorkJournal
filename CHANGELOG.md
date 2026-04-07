@@ -12,7 +12,14 @@ This file is the version and feature history for Mind Journal. Use it to record 
 - Activity Map now includes a compact Brain Roadmap showing the 100, 1000, 2000, 4000, 7000, and 10,000 note milestones
 - Added a Settings popover for showing or hiding the Theme picker, Cards/Timeline switch, and Brain Roadmap
 - Focus Mode now keeps the New Note button visible and uses `Cmd/Ctrl + .` as the toggle shortcut
-- Added an Open Folder browser for searching all notes and browsing them by tags and month in a large modal
+- Added an archive browser for searching all notes and browsing them by tags and month in a large modal
+- Simplified the main screen by moving theme, library view, sort, and archive actions into Settings and removing the top-level calendar path
+- Normal mode now keeps the Library visibly taller while capping it to an internal scroller, and shortcut help is opened from Settings instead of a top-row `?` button
+- Settings and Focus now sit beside the `Offline-first notes` eyebrow while `New Note` remains the main header button
+- Moved the `Mind Journal` brand label out of the sidebar header and into the Activity Map copy block under `Thought Network`
+- The `New Note` button now expands to fill the header action row more prominently
+- The Library browser button now uses an archive-style icon and `Open archive browser` labeling instead of a folder metaphor
+- The editor now suggests already-used tags as clickable chips while still allowing free-form tag entry
 
 ### Notes
 

@@ -8,7 +8,6 @@ const STORAGE_KEYS = {
   uiSettings: "mind_journal_ui_settings"
 };
 
-const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DEFAULT_THEME = "soft-gray";
 const BRAIN_MILESTONES = [
   { count: 100, label: "100", cue: "Emerges", fill: 0.08 },
@@ -20,8 +19,6 @@ const BRAIN_MILESTONES = [
 ];
 let brainPointCloudCache = null;
 const DEFAULT_UI_SETTINGS = {
-  showThemeControl: true,
-  showViewControl: true,
   showBrainRoadmap: true
 };
 
@@ -32,7 +29,6 @@ const state = {
   lastDeletedNote: null,
   pendingImport: null,
   isFolderBrowserOpen: false,
-  isCalendarOpen: false,
   isSettingsOpen: false,
   isFocusMode: loadPreference(STORAGE_KEYS.focus, "false") === "true",
   isShortcutHelpOpen: false,
@@ -42,21 +38,17 @@ const state = {
   selectedFolderTag: null,
   selectedFolderMonth: null,
   searchQuery: "",
-  selectedDate: null,
   currentView: loadPreference(STORAGE_KEYS.view, "card"),
   currentSort: loadPreference(STORAGE_KEYS.sort, "updated"),
   currentTheme: loadPreference(STORAGE_KEYS.theme, DEFAULT_THEME),
-  calendarMonth: startOfMonth(new Date()),
   autosaveMessage: "Autosave ready"
 };
 
 const elements = {
   searchInput: document.querySelector("#search-input"),
-  shortcutHelpButton: document.querySelector("#shortcut-help-button"),
   settingsButton: document.querySelector("#settings-button"),
   settingsPopover: document.querySelector("#settings-popover"),
-  toggleThemeControl: document.querySelector("#toggle-theme-control"),
-  toggleViewControl: document.querySelector("#toggle-view-control"),
+  settingsShortcutsButton: document.querySelector("#settings-shortcuts-button"),
   toggleBrainRoadmap: document.querySelector("#toggle-brain-roadmap"),
   focusModeButton: document.querySelector("#focus-mode-button"),
   newNoteButton: document.querySelector("#new-note-button"),
@@ -73,6 +65,8 @@ const elements = {
   editorForm: document.querySelector("#editor-form"),
   noteTitle: document.querySelector("#note-title"),
   noteTags: document.querySelector("#note-tags"),
+  tagSuggestions: document.querySelector("#tag-suggestions"),
+  tagSuggestionsList: document.querySelector("#tag-suggestions-list"),
   noteContent: document.querySelector("#note-content"),
   noteCreatedAt: document.querySelector("#note-created-at"),
   noteUpdatedAt: document.querySelector("#note-updated-at"),
@@ -103,22 +97,12 @@ const elements = {
   deleteModalDescription: document.querySelector("#delete-modal-description"),
   cancelDeleteButton: document.querySelector("#cancel-delete-button"),
   confirmDeleteButton: document.querySelector("#confirm-delete-button"),
-  clearFiltersButton: document.querySelector("#clear-filters-button"),
   importButton: document.querySelector("#import-button"),
   importFileInput: document.querySelector("#import-file-input"),
   exportButton: document.querySelector("#export-button"),
-  calendarTrigger: document.querySelector("#calendar-trigger"),
-  calendarTriggerText: document.querySelector("#calendar-trigger-text"),
   themeSelect: document.querySelector("#theme-select"),
   sortSelect: document.querySelector("#sort-select"),
   viewButtons: document.querySelectorAll("[data-view]"),
-  calendarMonthLabel: document.querySelector("#calendar-month-label"),
-  calendarPopover: document.querySelector("#calendar-popover"),
-  calendarWeekdays: document.querySelector("#calendar-weekdays"),
-  calendarGrid: document.querySelector("#calendar-grid"),
-  calendarPrev: document.querySelector("#calendar-prev"),
-  calendarNext: document.querySelector("#calendar-next"),
-  calendarToday: document.querySelector("#calendar-today"),
   noteCardTemplate: document.querySelector("#note-card-template"),
   brainCanvas: document.querySelector("#brain-canvas"),
   visualSummary: document.querySelector("#visual-summary"),
@@ -138,16 +122,13 @@ function initialize() {
   elements.sortSelect.value = state.currentSort;
   ensureSelection();
   bindEvents();
-  renderWeekdays();
   renderApp();
 }
 
 function bindEvents() {
   elements.focusModeButton.addEventListener("click", toggleFocusMode);
-  elements.shortcutHelpButton.addEventListener("click", openShortcutHelp);
   elements.settingsButton.addEventListener("click", toggleSettingsPopover);
-  elements.toggleThemeControl.addEventListener("change", (event) => updateUiSetting("showThemeControl", event.target.checked));
-  elements.toggleViewControl.addEventListener("change", (event) => updateUiSetting("showViewControl", event.target.checked));
+  elements.settingsShortcutsButton.addEventListener("click", openShortcutHelp);
   elements.toggleBrainRoadmap.addEventListener("change", (event) => updateUiSetting("showBrainRoadmap", event.target.checked));
   elements.openFolderButton.addEventListener("click", openFolderBrowser);
   elements.newNoteButton.addEventListener("click", createNote);
@@ -186,11 +167,9 @@ function bindEvents() {
       cancelPendingImport();
     }
   });
-  elements.clearFiltersButton.addEventListener("click", clearFilters);
   elements.importButton.addEventListener("click", () => elements.importFileInput.click());
   elements.importFileInput.addEventListener("change", importNotes);
   elements.exportButton.addEventListener("click", exportNotes);
-  elements.calendarTrigger.addEventListener("click", toggleCalendarPopover);
   elements.searchInput.addEventListener("input", (event) => {
     state.searchQuery = event.target.value.trim();
     renderApp();
@@ -217,20 +196,6 @@ function bindEvents() {
   elements.noteTitle.addEventListener("input", () => updateSelectedNoteField("title", elements.noteTitle.value));
   elements.noteTags.addEventListener("input", () => updateSelectedNoteField("tags", parseTags(elements.noteTags.value)));
   elements.noteContent.addEventListener("input", () => updateSelectedNoteField("content", elements.noteContent.value));
-  elements.calendarPrev.addEventListener("click", () => {
-    state.calendarMonth = addMonths(state.calendarMonth, -1);
-    renderCalendar();
-  });
-  elements.calendarNext.addEventListener("click", () => {
-    state.calendarMonth = addMonths(state.calendarMonth, 1);
-    renderCalendar();
-  });
-  elements.calendarToday.addEventListener("click", () => {
-    state.calendarMonth = startOfMonth(new Date());
-    state.selectedDate = formatDateKey(new Date());
-    state.isCalendarOpen = false;
-    renderApp();
-  });
   document.addEventListener("click", handleDocumentClick);
   window.addEventListener("resize", drawBrainVisualization);
   window.addEventListener("keydown", handleKeyboardShortcuts);
@@ -242,7 +207,6 @@ function renderApp() {
   ensureSelection();
   renderLibrary();
   renderEditor();
-  renderCalendar();
   renderDeleteModal();
   renderFolderBrowser();
   renderShortcutHelpModal();
@@ -257,37 +221,20 @@ function renderApp() {
   drawBrainVisualization();
 }
 
-function renderWeekdays() {
-  elements.calendarWeekdays.innerHTML = "";
-  WEEKDAY_LABELS.forEach((label) => {
-    const cell = document.createElement("span");
-    cell.textContent = label;
-    elements.calendarWeekdays.appendChild(cell);
-  });
-}
-
-function renderCalendarPopover() {
-  elements.calendarPopover.classList.toggle("hidden", !state.isCalendarOpen);
-  elements.calendarTrigger.setAttribute("aria-expanded", String(state.isCalendarOpen));
-  elements.calendarTriggerText.textContent = state.selectedDate ? formatCompactDate(state.selectedDate) : "Any date";
-}
-
 function renderFocusModeButton() {
-  elements.focusModeButton.textContent = state.isFocusMode ? "Exit Focus" : "Focus Mode";
+  elements.focusModeButton.textContent = state.isFocusMode ? "Exit Focus" : "Focus";
   elements.focusModeButton.setAttribute("aria-pressed", String(state.isFocusMode));
 }
 
 function renderSettingsPopover() {
   elements.settingsPopover.classList.toggle("hidden", !state.isSettingsOpen);
   elements.settingsButton.setAttribute("aria-expanded", String(state.isSettingsOpen));
-  elements.toggleThemeControl.checked = state.uiSettings.showThemeControl;
-  elements.toggleViewControl.checked = state.uiSettings.showViewControl;
   elements.toggleBrainRoadmap.checked = state.uiSettings.showBrainRoadmap;
+  elements.themeSelect.value = state.currentTheme;
+  elements.sortSelect.value = state.currentSort;
 }
 
 function renderVisibilitySettings() {
-  elements.themeControlWrapper.classList.toggle("hidden", !state.uiSettings.showThemeControl);
-  elements.viewControlWrapper.classList.toggle("hidden", !state.uiSettings.showViewControl);
   elements.brainRoadmap.classList.toggle("hidden", !state.uiSettings.showBrainRoadmap);
 }
 
@@ -380,6 +327,8 @@ function renderEditor() {
   if (!hasNote) {
     elements.editorHeading.textContent = "No note selected";
     elements.autosaveIndicator.textContent = state.autosaveMessage;
+    elements.tagSuggestions.classList.add("hidden");
+    elements.tagSuggestionsList.innerHTML = "";
     updateMobileEditorState();
     return;
   }
@@ -388,10 +337,47 @@ function renderEditor() {
   elements.noteTitle.value = note.title;
   elements.noteTags.value = note.tags.join(", ");
   elements.noteContent.value = note.content;
+  renderTagSuggestions(note);
   updateEditorMeta(note);
   elements.autosaveIndicator.textContent = state.autosaveMessage;
 
   updateMobileEditorState();
+}
+
+function renderTagSuggestions(note) {
+  const tagCounts = state.notes.reduce((map, currentNote) => {
+    currentNote.tags.forEach((tag) => {
+      map.set(tag, (map.get(tag) || 0) + 1);
+    });
+    return map;
+  }, new Map());
+
+  const suggestions = Array.from(tagCounts.entries())
+    .filter(([tag]) => !note.tags.includes(tag))
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
+
+  elements.tagSuggestionsList.innerHTML = "";
+  elements.tagSuggestions.classList.toggle("hidden", suggestions.length === 0);
+
+  suggestions.forEach(([tag]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "tag-suggestion-chip";
+    button.textContent = `#${tag}`;
+    button.addEventListener("click", () => addSuggestedTag(tag));
+    elements.tagSuggestionsList.appendChild(button);
+  });
+}
+
+function addSuggestedTag(tag) {
+  const note = getSelectedNote();
+  if (!note || note.tags.includes(tag)) {
+    return;
+  }
+
+  const nextTags = [...note.tags, tag];
+  elements.noteTags.value = nextTags.join(", ");
+  updateSelectedNoteField("tags", nextTags);
 }
 
 function renderDeleteModal() {
@@ -560,59 +546,6 @@ function renderFolderResults() {
     });
 
     elements.folderResults.appendChild(article);
-  });
-}
-
-function renderCalendar() {
-  renderCalendarPopover();
-  const activeMonth = state.calendarMonth;
-  elements.calendarMonthLabel.textContent = activeMonth.toLocaleDateString(undefined, {
-    month: "long",
-    year: "numeric"
-  });
-  elements.calendarGrid.innerHTML = "";
-
-  const gridDays = getCalendarGridDays(activeMonth);
-  const noteCounts = countNotesByCreatedDate(state.notes);
-  const todayKey = formatDateKey(new Date());
-
-  gridDays.forEach((date) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "calendar-day";
-
-    const dateKey = formatDateKey(date);
-    const count = noteCounts.get(dateKey) || 0;
-
-    if (date.getMonth() !== activeMonth.getMonth()) {
-      button.classList.add("is-muted");
-    }
-    if (dateKey === todayKey) {
-      button.classList.add("is-today");
-    }
-    if (dateKey === state.selectedDate) {
-      button.classList.add("is-selected");
-    }
-
-    const dayNumber = document.createElement("span");
-    dayNumber.textContent = String(date.getDate());
-    const countLabel = document.createElement("small");
-    countLabel.textContent = count ? String(count) : "0";
-    countLabel.classList.toggle("is-empty", count === 0);
-    button.setAttribute(
-      "aria-label",
-      `${formatReadableDate(dateKey)}${count ? `, ${count} note${count > 1 ? "s" : ""}` : ", no notes"}`
-    );
-    button.append(dayNumber, countLabel);
-
-    button.addEventListener("click", () => {
-      state.selectedDate = state.selectedDate === dateKey ? null : dateKey;
-      state.calendarMonth = startOfMonth(date);
-      state.isCalendarOpen = false;
-      renderApp();
-    });
-
-    elements.calendarGrid.appendChild(button);
   });
 }
 
@@ -1137,8 +1070,6 @@ function createNote() {
 
   state.notes.unshift(note);
   state.selectedNoteId = note.id;
-  state.selectedDate = formatDateKey(timestamp);
-  state.calendarMonth = startOfMonth(new Date(timestamp));
   persistNotes();
   markOnboardingSeen();
   setAutosaveMessage("New note created");
@@ -1200,16 +1131,12 @@ function closeDeleteModal() {
 
 function clearFilters() {
   state.searchQuery = "";
-  state.selectedDate = null;
-  state.isCalendarOpen = false;
-  state.calendarMonth = startOfMonth(new Date());
   elements.searchInput.value = "";
   renderApp();
 }
 
 function openFolderBrowser() {
   state.isFolderBrowserOpen = true;
-  state.isCalendarOpen = false;
   state.isSettingsOpen = false;
   state.isShortcutHelpOpen = false;
   resetFolderBrowserFilters(false);
@@ -1237,7 +1164,6 @@ function resetFolderBrowserFilters(shouldRender = true) {
 function toggleFocusMode() {
   state.isFocusMode = !state.isFocusMode;
   state.isFolderBrowserOpen = false;
-  state.isCalendarOpen = false;
   state.isSettingsOpen = false;
   state.isShortcutHelpOpen = false;
   persistPreference(STORAGE_KEYS.focus, String(state.isFocusMode));
@@ -1246,7 +1172,6 @@ function toggleFocusMode() {
 
 function openShortcutHelp() {
   state.isFolderBrowserOpen = false;
-  state.isCalendarOpen = false;
   state.isSettingsOpen = false;
   state.isShortcutHelpOpen = true;
   renderApp();
@@ -1386,13 +1311,6 @@ function handleKeyboardShortcuts(event) {
     return;
   }
 
-  if (event.key === "Escape" && state.isCalendarOpen) {
-    state.isCalendarOpen = false;
-    renderCalendarPopover();
-    elements.calendarTrigger.focus();
-    return;
-  }
-
   if (event.key === "Escape" && state.isSettingsOpen) {
     closeSettingsPopover();
     return;
@@ -1456,7 +1374,7 @@ function handleKeyboardShortcuts(event) {
 }
 
 function getVisibleNotes() {
-  return state.notes.filter((note) => matchesSearch(note, state.searchQuery) && matchesSelectedDate(note, state.selectedDate));
+  return state.notes.filter((note) => matchesSearch(note, state.searchQuery));
 }
 
 function shouldShowOnboarding() {
@@ -1497,13 +1415,6 @@ function matchesSearch(note, query) {
     .toLowerCase();
 
   return haystack.includes(query.toLowerCase());
-}
-
-function matchesSelectedDate(note, selectedDate) {
-  if (!selectedDate) {
-    return true;
-  }
-  return formatDateKey(note.createdAt) === selectedDate;
 }
 
 function groupNotesByDay(notes) {
@@ -1707,8 +1618,6 @@ function loadUiSettings() {
   try {
     const parsed = JSON.parse(raw);
     return {
-      showThemeControl: parsed.showThemeControl !== false,
-      showViewControl: parsed.showViewControl !== false,
       showBrainRoadmap: parsed.showBrainRoadmap !== false
     };
   } catch (error) {
@@ -1729,15 +1638,6 @@ function markOnboardingSeen() {
   persistPreference(STORAGE_KEYS.onboarding, "true");
 }
 
-function startOfMonth(value) {
-  const date = value instanceof Date ? new Date(value) : new Date(value);
-  return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
-function addMonths(value, offset) {
-  return new Date(value.getFullYear(), value.getMonth() + offset, 1);
-}
-
 function setAutosaveMessage(message) {
   state.autosaveMessage = message;
 }
@@ -1752,20 +1652,9 @@ function updateEditorMeta(note) {
   elements.noteUpdatedAt.textContent = formatTimestamp(note.updatedAt);
 }
 
-function toggleCalendarPopover() {
-  state.isFolderBrowserOpen = false;
-  state.isShortcutHelpOpen = false;
-  state.isSettingsOpen = false;
-  renderSettingsPopover();
-  state.isCalendarOpen = !state.isCalendarOpen;
-  renderCalendarPopover();
-}
-
 function toggleSettingsPopover() {
   state.isFolderBrowserOpen = false;
-  state.isCalendarOpen = false;
   state.isShortcutHelpOpen = false;
-  renderCalendarPopover();
   state.isSettingsOpen = !state.isSettingsOpen;
   renderSettingsPopover();
 }
@@ -1785,20 +1674,8 @@ function updateUiSetting(key, value) {
 function handleDocumentClick(event) {
   const target = event.target;
 
-  if (state.isCalendarOpen && !elements.calendarPopover.contains(target) && !elements.calendarTrigger.contains(target)) {
-    state.isCalendarOpen = false;
-    renderCalendarPopover();
-  }
-
   if (state.isSettingsOpen && !elements.settingsPopover.contains(target) && !elements.settingsButton.contains(target)) {
     state.isSettingsOpen = false;
     renderSettingsPopover();
   }
-}
-
-function formatCompactDate(dateKey) {
-  return new Date(`${dateKey}T12:00:00`).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric"
-  });
 }
