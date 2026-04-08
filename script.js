@@ -9,6 +9,7 @@ const STORAGE_KEYS = {
 };
 
 const DEFAULT_THEME = "soft-gray";
+const AUTO_URL_TAG = "url";
 const BRAIN_MILESTONES = [
   { count: 100, label: "100", cue: "Emerges", fill: 0.08 },
   { count: 1000, label: "1000", cue: "Activates", fill: 0.28 },
@@ -53,6 +54,7 @@ const elements = {
   focusModeButton: document.querySelector("#focus-mode-button"),
   newNoteButton: document.querySelector("#new-note-button"),
   openFolderButton: document.querySelector("#open-folder-button"),
+  downloadBackupButton: document.querySelector("#download-backup-button"),
   viewControlWrapper: document.querySelector("#view-control-wrapper"),
   themeControlWrapper: document.querySelector("#theme-control-wrapper"),
   librarySummary: document.querySelector("#library-summary"),
@@ -120,6 +122,7 @@ function initialize() {
   document.body.classList.toggle("focus-mode", state.isFocusMode);
   elements.themeSelect.value = state.currentTheme;
   elements.sortSelect.value = state.currentSort;
+  persistNotes();
   ensureSelection();
   bindEvents();
   renderApp();
@@ -131,6 +134,7 @@ function bindEvents() {
   elements.settingsShortcutsButton.addEventListener("click", openShortcutHelp);
   elements.toggleBrainRoadmap.addEventListener("change", (event) => updateUiSetting("showBrainRoadmap", event.target.checked));
   elements.openFolderButton.addEventListener("click", openFolderBrowser);
+  elements.downloadBackupButton.addEventListener("click", exportNotes);
   elements.newNoteButton.addEventListener("click", createNote);
   elements.closeEditorButton.addEventListener("click", closeEditor);
   elements.deleteNoteButton.addEventListener("click", openDeleteModal);
@@ -1196,6 +1200,7 @@ function updateSelectedNoteField(field, value) {
   }
 
   note[field] = value;
+  syncAutoTags(note);
   note.updatedAt = new Date().toISOString();
   persistNotes();
   sortNotesInPlace();
@@ -1204,8 +1209,12 @@ function updateSelectedNoteField(field, value) {
     minute: "2-digit"
   })}`);
   renderLibrary();
+  renderTagSuggestions(note);
   updateEditorMeta(note);
   elements.editorHeading.textContent = note.title || "Untitled note";
+  if (field === "content") {
+    elements.noteTags.value = note.tags.join(", ");
+  }
   elements.autosaveIndicator.textContent = state.autosaveMessage;
 }
 
@@ -1361,6 +1370,18 @@ function handleKeyboardShortcuts(event) {
     return;
   }
 
+  if (!isTyping && !event.metaKey && !event.ctrlKey && !event.altKey && event.key.toLowerCase() === "o") {
+    event.preventDefault();
+    openFolderBrowser();
+    return;
+  }
+
+  if (!isTyping && !event.metaKey && !event.ctrlKey && !event.altKey && event.key.toLowerCase() === "d") {
+    event.preventDefault();
+    exportNotes();
+    return;
+  }
+
   if (!isTyping && !event.metaKey && !event.ctrlKey && !event.altKey && event.key.toLowerCase() === "j") {
     event.preventDefault();
     selectAdjacentVisibleNote(1);
@@ -1497,14 +1518,7 @@ function loadNotes() {
     if (!Array.isArray(parsed)) {
       return [];
     }
-    return parsed.map((note) => ({
-      id: String(note.id || createId()),
-      title: String(note.title || ""),
-      content: String(note.content || ""),
-      tags: Array.isArray(note.tags) ? note.tags.map((tag) => String(tag).trim()).filter(Boolean) : [],
-      createdAt: normalizeDate(note.createdAt),
-      updatedAt: normalizeDate(note.updatedAt || note.createdAt)
-    }));
+    return parsed.map(normalizeStoredNote);
   } catch (error) {
     console.error("Failed to parse saved notes", error);
     return [];
@@ -1517,15 +1531,31 @@ function normalizeImportedNotes(parsed) {
   }
 
   return parsed
-    .map((note) => ({
-      id: String(note.id || createId()),
-      title: String(note.title || ""),
-      content: String(note.content || ""),
-      tags: Array.isArray(note.tags) ? note.tags.map((tag) => String(tag).trim()).filter(Boolean) : [],
-      createdAt: normalizeDate(note.createdAt),
-      updatedAt: normalizeDate(note.updatedAt || note.createdAt)
-    }))
+    .map(normalizeStoredNote)
     .filter((note) => note.title || note.content || note.tags.length);
+}
+
+function normalizeStoredNote(note) {
+  const normalized = {
+    id: String(note.id || createId()),
+    title: String(note.title || ""),
+    content: String(note.content || ""),
+    tags: Array.isArray(note.tags) ? note.tags.map((tag) => String(tag).trim()).filter(Boolean) : [],
+    createdAt: normalizeDate(note.createdAt),
+    updatedAt: normalizeDate(note.updatedAt || note.createdAt)
+  };
+  syncAutoTags(normalized);
+  return normalized;
+}
+
+function syncAutoTags(note) {
+  const baseTags = note.tags.filter((tag, index, allTags) => tag.toLowerCase() !== AUTO_URL_TAG || index === allTags.findIndex((item) => item.toLowerCase() === AUTO_URL_TAG));
+  const nonUrlTags = baseTags.filter((tag) => tag.toLowerCase() !== AUTO_URL_TAG);
+  note.tags = hasUrlContent(note.content) ? [...nonUrlTags, AUTO_URL_TAG] : nonUrlTags;
+}
+
+function hasUrlContent(content) {
+  return /https?:\/\/\S+/i.test(content);
 }
 
 function sortNotesInPlace() {
