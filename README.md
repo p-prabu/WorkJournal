@@ -52,7 +52,7 @@ All data is stored in the current browser only.
 
 ## Import and Export
 
-- `Export JSON` downloads notes as `mind-journal-notes.json`
+- `Export JSON` downloads notes as `mind-journal-notes-YYYY-MM-DD.json`
 - `Import JSON` accepts exported note arrays and merges them into the current note store by `id`
 - The app shows an import review step before imported notes are applied
 - Import feedback reports how many notes were `added` and how many were `replaced`

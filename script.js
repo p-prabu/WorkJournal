@@ -1223,8 +1223,9 @@ function exportNotes() {
   const blob = new Blob([data], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
+  const today = new Date().toISOString().slice(0, 10);
   link.href = url;
-  link.download = "mind-journal-notes.json";
+  link.download = `mind-journal-notes-${today}.json`;
   link.click();
   URL.revokeObjectURL(url);
   setAutosaveMessage("JSON export downloaded");

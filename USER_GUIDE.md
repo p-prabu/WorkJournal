@@ -81,7 +81,7 @@
 ### Export
 
 - Click `Export JSON`
-- The app downloads `mind-journal-notes.json`
+- The app downloads `mind-journal-notes-YYYY-MM-DD.json`
 
 ### Import
 

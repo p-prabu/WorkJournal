@@ -90,7 +90,7 @@ No installation required.
 Click **Export JSON** to download all notes as:
 
 ```
-mind-journal-notes.json
+mind-journal-notes-YYYY-MM-DD.json
 ```
 
 Click **Import JSON** to restore or merge notes from a previously exported JSON file.
