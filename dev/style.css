@@ -77,6 +77,57 @@ body[data-theme="dark"] {
   --shadow-card: 0 12px 24px rgba(0, 0, 0, 0.22);
 }
 
+body[data-theme="glass"] {
+  --bg: #e7edf3;
+  --bg-accent:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.82), transparent 30%),
+    radial-gradient(circle at top right, rgba(173, 211, 236, 0.26), transparent 28%),
+    linear-gradient(150deg, #e7edf3 0%, #d7e1ea 52%, #cfdce6 100%);
+  --panel: rgba(248, 252, 255, 0.58);
+  --panel-strong: rgba(252, 254, 255, 0.74);
+  --border: rgba(92, 114, 132, 0.16);
+  --text: #1d2a34;
+  --muted: #5f7282;
+  --accent: #6b8aa3;
+  --accent-strong: #466276;
+  --danger: #975c68;
+  --input: rgba(255, 255, 255, 0.46);
+  --canvas-glow: rgba(116, 164, 197, 0.22);
+  --brain-100: #a9bccd;
+  --brain-1000: #91acc2;
+  --brain-2000: #7d9fb8;
+  --brain-4000: #6b8aa3;
+  --brain-7000: #59768f;
+  --brain-10000: #425d74;
+  --shadow-soft: 0 24px 66px rgba(44, 61, 78, 0.12);
+  --shadow-card: 0 12px 28px rgba(54, 74, 92, 0.1);
+}
+
+body[data-theme="paper"] {
+  --bg: #f5f0e6;
+  --bg-accent:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.72), transparent 30%),
+    linear-gradient(145deg, #f5f0e6 0%, #efe6d7 48%, #e8decf 100%);
+  --panel: rgba(255, 251, 245, 0.84);
+  --panel-strong: rgba(255, 252, 247, 0.96);
+  --border: rgba(105, 87, 68, 0.12);
+  --text: #2e2419;
+  --muted: #6d5c49;
+  --accent: #8a6b4e;
+  --accent-strong: #654a34;
+  --danger: #9a5d53;
+  --input: rgba(255, 248, 238, 0.84);
+  --canvas-glow: rgba(165, 128, 90, 0.16);
+  --brain-100: #cbb59b;
+  --brain-1000: #b89b7a;
+  --brain-2000: #a98761;
+  --brain-4000: #8a6b4e;
+  --brain-7000: #75563d;
+  --brain-10000: #5d4330;
+  --shadow-soft: 0 22px 58px rgba(65, 48, 31, 0.1);
+  --shadow-card: 0 10px 24px rgba(80, 60, 40, 0.08);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -228,6 +279,12 @@ p {
   padding: 14px 18px;
   font-size: 1rem;
   font-weight: 800;
+  background: color-mix(in srgb, var(--accent) 86%, white 14%);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+#new-note-button:hover {
+  background: color-mix(in srgb, var(--accent) 90%, white 10%);
 }
 
 .sidebar__top-actions {
@@ -240,6 +297,18 @@ p {
   min-width: 44px;
   padding-inline: 0;
   font-weight: 800;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-button svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
 }
 
 .toolbar {

@@ -20,6 +20,10 @@ This file is the version and feature history for Mind Journal. Use it to record 
 - The `New Note` button now expands to fill the header action row more prominently
 - The Library browser button now uses an archive-style icon and `Open archive browser` labeling instead of a folder metaphor
 - The editor now suggests already-used tags as clickable chips while still allowing free-form tag entry
+- Notes now auto-apply a `url` tag when their content contains `http://` or `https://` links, while content remains plain text
+- Added an always-visible backup button beside Archive in the Library header, plus `O` and `D` shortcuts for archive and backup
+- Added a new `Glass` theme with a calm frosted blue-gray visual treatment
+- Added a new `Paper` theme with a warm writing-first visual treatment
 
 ### Notes
 

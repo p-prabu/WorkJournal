@@ -14,7 +14,7 @@ A minimal, Apple-inspired **offline-first notes & journal web app** built using 
 - 🏷️ Clickable Library tags for quick filtering
 - 🎯 Persistent Focus Mode for distraction-free writing
 - 👋 First-use onboarding guidance
-- 🎨 Light, Dark, and Soft Gray themes
+- 🎨 Light, Dark, Soft Gray, Glass, and Paper themes
 - 🧠 Brain-style visualization that grows with notes
 - 💾 LocalStorage persistence (works offline)
 - ↩️ Undo delete banner
@@ -36,6 +36,8 @@ A minimal, Apple-inspired **offline-first notes & journal web app** built using 
 | Clear search and date filters | `Cmd + Delete` | `Ctrl + Backspace` |
 | Select next visible note | `J` | `J` |
 | Select previous visible note | `K` | `K` |
+| Open archive | `O` | `O` |
+| Download backup | `D` | `D` |
 
 ---
 
@@ -102,6 +104,8 @@ After import, the app reports how many notes were added and how many were replac
 - Light
 - Dark
 - Soft Gray (default, eye-friendly)
+- Glass (calm frosted look)
+- Paper (warm writing-first look)
 
 ---
 

@@ -70,6 +70,8 @@
                   <option value="soft-gray">Soft Gray</option>
                   <option value="light">Light</option>
                   <option value="dark">Dark</option>
+                  <option value="glass">Glass</option>
+                  <option value="paper">Paper</option>
                 </select>
               </label>
 
@@ -134,7 +136,41 @@
                 type="button"
                 aria-label="Open archive browser"
               >
-                &#128230;
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M4.75 7.75h14.5a1.5 1.5 0 0 1 1.5 1.5v7a2 2 0 0 1-2 2H5.25a2 2 0 0 1-2-2v-7a1.5 1.5 0 0 1 1.5-1.5Z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="1.8"
+                  />
+                  <path
+                    d="M9 11.25h6M12 4.75v3"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="1.8"
+                  />
+                </svg>
+              </button>
+              <button
+                class="icon-button"
+                id="download-backup-button"
+                type="button"
+                aria-label="Download backup"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M12 4.75v9.5M8.5 10.75 12 14.25l3.5-3.5M5.25 17.75h13.5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="1.8"
+                  />
+                </svg>
               </button>
               <p class="library__summary" id="library-summary"></p>
             </div>
@@ -406,6 +442,14 @@
             <div>Previous visible note</div>
             <kbd>K</kbd>
             <kbd>K</kbd>
+
+            <div>Open archive</div>
+            <kbd>O</kbd>
+            <kbd>O</kbd>
+
+            <div>Download backup</div>
+            <kbd>D</kbd>
+            <kbd>D</kbd>
 
             <div>Close editor or dialog</div>
             <kbd>Esc</kbd>

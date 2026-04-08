@@ -15,7 +15,7 @@ Mind Journal is a local-first journal and notes web app built with plain HTML, C
 - First-use onboarding for new users
 - Import notes from JSON
 - Export notes to JSON
-- Switch between Light, Dark, and Soft Gray themes
+- Switch between Light, Dark, Soft Gray, Glass, and Paper themes
 - Use keyboard shortcuts for common actions
 - See a lightweight activity visualization that grows with note count
 
@@ -69,6 +69,8 @@ All data is stored in the current browser only.
 | Clear search and date filters | `Cmd + Delete` | `Ctrl + Backspace` |
 | Select next visible note | `J` | `J` |
 | Select previous visible note | `K` | `K` |
+| Open archive | `O` | `O` |
+| Download backup | `D` | `D` |
 
 ## Notes
 

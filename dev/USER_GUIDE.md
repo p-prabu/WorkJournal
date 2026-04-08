@@ -96,6 +96,8 @@
 - Soft Gray
 - Light
 - Dark
+- Glass
+- Paper
 
 Theme preference is saved in the browser.
 
@@ -111,6 +113,8 @@ Theme preference is saved in the browser.
 | Clear search and date filters | `Cmd + Delete` | `Ctrl + Backspace` |
 | Select next visible note | `J` | `J` |
 | Select previous visible note | `K` | `K` |
+| Open archive | `O` | `O` |
+| Download backup | `D` | `D` |
 
 ## Data and Limitations
 
