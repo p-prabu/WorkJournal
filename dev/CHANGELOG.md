@@ -24,6 +24,7 @@ This file is the version and feature history for Mind Journal. Use it to record 
 - Added an always-visible backup button beside Archive in the Library header, plus `O` and `D` shortcuts for archive and backup
 - Added a new `Glass` theme with a calm frosted blue-gray visual treatment
 - Added a new `Paper` theme with a warm writing-first visual treatment
+- Backup exports now use dated filenames in the form `mind-journal-notes-YYYY-MM-DD.json`
 
 ### Notes
 
